@@ -1,0 +1,43 @@
+version: '3.8'
+
+# NIDS Deployment Architecture
+# Architecture:
+# - Packet Capture component (Scapy + Multiprocessing Queue)
+# - IDS Engine (Rule-based & ML-based Detection)
+# - Database (SQLite persistent volume)
+# - Web Dashboard (Flask + Socket.IO)
+# All currently run within this standalone container optimized for performance.
+
+services:
+  nids:
+    build: .
+    container_name: nids
+    # Uncomment the following to enable live packet capture on the host interface:
+    # network_mode: host
+    # cap_add:
+    #   - NET_ADMIN
+    #   - NET_RAW
+    # privileged: true
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+      - ./config.yaml:/app/config.yaml:ro
+    environment:
+      - PYTHONUNBUFFERED=1
+      # NIDS Tuning Variables
+      - NIDS_WORKER_THREADS=4
+      - NIDS_PACKET_BUFFER=20000
+      - NIDS_ML_CONTAMINATION=0.05
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3

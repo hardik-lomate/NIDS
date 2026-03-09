@@ -1,0 +1,48 @@
+# ═══════════════════════════════════════════════════════
+# AI-NIDS v4.0 Requirements
+# ═══════════════════════════════════════════════════════
+
+# ─── Core (required) ────────────────────────────────────
+flask>=3.0.0
+scikit-learn>=1.4.0          # IsolationForest + OneClassSVM
+numpy>=1.26.0                # Autoencoder, feature math
+pandas>=2.2.0                # Dataset loading (CICIDS/UNSW-NB15)
+pyyaml>=6.0.1
+python-dateutil>=2.9.0
+
+# ─── Packet Capture (priority order) ────────────────────
+# Option A: PyShark (Wireshark/tshark backend, recommended)
+#   pip install pyshark
+#   sudo apt install tshark  # also required
+pyshark>=0.6           # optional — falls back to dpkt/Scapy
+
+# Option B: dpkt (fast lightweight parser, v4.0 new)
+dpkt>=1.9.8            # optional — 5-10x faster than Scapy
+
+# Option C: Scapy (portable fallback)
+scapy>=2.5.0           # optional — falls back to demo mode
+
+# ─── Optional: API integrations (Phase 3) ───────────────
+# No pip install needed — uses urllib (stdlib)
+# Configure keys in config.yaml:
+#   threat_intel:
+#     abuseipdb_key: YOUR_KEY    # free at abuseipdb.com
+#     alientvault_key: YOUR_KEY  # free at otx.alienvault.com
+
+# ─── Optional: Socket.IO ─────────────────────────────────
+flask-socketio>=5.3.6
+flask-cors>=4.0.0
+
+# ─── Optional: GeoIP ─────────────────────────────────────
+# geoip2>=4.8.0   # for offline GeoIP (download GeoLite2-City.mmdb)
+# Fallback: ip-api.com (no key, 45 req/min, online only)
+
+# ─── Dataset pipeline (Phase 2) ─────────────────────────
+# Download from:
+#   CICIDS2017: https://www.unb.ca/cic/datasets/ids-2017.html
+#   UNSW-NB15:  https://research.unsw.edu.au/projects/unsw-nb15-dataset
+# Then call POST /api/ml/train/dataset with {"dataset":"cicids2017","path":"/your/file.csv"}
+
+# ─── Install minimum stack ───────────────────────────────
+# pip install flask scikit-learn numpy pandas pyyaml flask-socketio flask-cors
+# pip install pyshark scapy   # for live capture

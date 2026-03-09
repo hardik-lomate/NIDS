@@ -1,0 +1,65 @@
+# ─── Python ────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+dist/
+build/
+*.egg
+
+# ─── Virtual Environments ─────────────────────────────
+venv/
+env/
+.venv/
+.env
+
+# ─── IDE / Editor ─────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# ─── NIDS Data (generated at runtime) ─────────────────
+data/nids.db
+data/nids.db-shm
+data/nids.db-wal
+data/packets.csv
+data/model_versions/
+data/pcaps/
+logs/
+
+# ─── ML Model Artifacts ──────────────────────────────
+*.pkl
+*.joblib
+
+# ─── Config (may contain API keys) ───────────────────
+config.yaml
+
+# ─── Misc ─────────────────────────────────────────────
+*.log
+*.bak
+*.tmp
+__pycache__/
+*.pyc
+*.pyo
+
+# Database
+*.db
+*.db-shm
+*.db-wal
+
+# Logs
+*.log
+
+# Data files
+data/*.csv
+data/*.db
+data/model_versions/
+
+# OS junk
+.DS_Store
+Thumbs.db

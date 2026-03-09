@@ -1,0 +1,2743 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
+  <title>AI-NIDS v4 · SOC Dashboard</title>
+  <link
+    href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=Barlow+Condensed:wght@500;600;700&display=swap"
+    rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <style>
+    :root {
+      --bg: #07080e;
+      --s1: #0c0e17;
+      --s2: #10131e;
+      --s3: #151929;
+      --s4: #1a2030;
+      --s5: #232a3d;
+      --t0: #dde3f5;
+      --t1: #8e9ab8;
+      --t2: #4e5878;
+      --t3: #2a3252;
+      --blue: #4da8e0;
+      --vio: #9b74e8;
+      --teal: #22d3ee;
+      --grn: #3dd4a0;
+      --red: #e53e4d;
+      --amb: #f5a142;
+      --yel: #f9ca4f;
+      --ln1: #1a2030;
+      --ln2: #232a3d;
+      --r: 4px;
+      --r2: 6px;
+      --c-crit: #e53e4d;
+      --c-high: #f5a142;
+      --c-med: #f9ca4f;
+      --c-low: #3dd4a0;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--t0);
+      font-family: 'IBM Plex Sans', sans-serif;
+      font-size: 13px;
+      overflow: hidden;
+      height: 100vh;
+      display: flex;
+      flex-direction: column
+    }
+
+    /* ── Shell ── */
+    .shell {
+      display: flex;
+      flex: 1;
+      overflow: hidden
+    }
+
+    .sidebar {
+      width: 200px;
+      min-width: 200px;
+      background: var(--s1);
+      border-right: 1px solid var(--ln1);
+      display: flex;
+      flex-direction: column;
+      padding: 0
+    }
+
+    .main {
+      flex: 1;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column
+    }
+
+    .topbar {
+      height: 48px;
+      background: var(--s1);
+      border-bottom: 1px solid var(--ln1);
+      display: flex;
+      align-items: center;
+      padding: 0 16px;
+      gap: 12px;
+      flex-shrink: 0
+    }
+
+    .content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px;
+      display: none
+    }
+
+    .content.active {
+      display: block
+    }
+
+    /* ── Brand ── */
+    .brand {
+      padding: 14px 16px 8px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      border-bottom: 1px solid var(--ln1);
+      margin-bottom: 6px
+    }
+
+    .brand-icon {
+      width: 28px;
+      height: 28px;
+      background: linear-gradient(135deg, var(--blue), var(--vio));
+      border-radius: var(--r);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px
+    }
+
+    .brand-name {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 18px;
+      font-weight: 700;
+      letter-spacing: .3px
+    }
+
+    .brand-ver {
+      font-size: 9px;
+      color: var(--t2);
+      font-family: 'IBM Plex Mono', monospace;
+      margin-top: 1px
+    }
+
+    /* ── Nav ── */
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      padding: 8px 14px;
+      cursor: pointer;
+      color: var(--t1);
+      font-size: 12.5px;
+      font-weight: 500;
+      border-left: 2px solid transparent;
+      transition: all .15s
+    }
+
+    .nav-item:hover {
+      background: var(--s2);
+      color: var(--t0)
+    }
+
+    .nav-item.active {
+      background: var(--s2);
+      color: var(--blue);
+      border-left-color: var(--blue)
+    }
+
+    .nav-icon {
+      width: 16px;
+      height: 16px;
+      flex-shrink: 0;
+      opacity: .7
+    }
+
+    .nav-item.active .nav-icon {
+      opacity: 1
+    }
+
+    .nav-section {
+      font-size: 9px;
+      color: var(--t3);
+      text-transform: uppercase;
+      letter-spacing: .9px;
+      padding: 10px 14px 4px;
+      font-weight: 600
+    }
+
+    /* ── Topbar ── */
+    .tb-title {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 18px;
+      font-weight: 600;
+      flex: 1
+    }
+
+    .tb-badge {
+      background: var(--s3);
+      border: 1px solid var(--ln2);
+      border-radius: 20px;
+      padding: 3px 10px;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 10px;
+      color: var(--t1);
+      display: flex;
+      align-items: center;
+      gap: 5px
+    }
+
+    .pulse {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--grn);
+      animation: pulse 2s infinite
+    }
+
+    @keyframes pulse {
+
+      0%,
+      100% {
+        opacity: 1
+      }
+
+      50% {
+        opacity: .3
+      }
+    }
+
+    /* ── KPI Cards ── */
+    .kpis {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 10px;
+      margin-bottom: 16px
+    }
+
+    .kpi {
+      background: var(--s1);
+      border: 1px solid var(--ln1);
+      border-radius: var(--r2);
+      padding: 12px 14px;
+      position: relative;
+      overflow: hidden
+    }
+
+    .kpi::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 2px
+    }
+
+    .kpi.k-total::before {
+      background: var(--blue)
+    }
+
+    .kpi.k-crit::before {
+      background: var(--red)
+    }
+
+    .kpi.k-high::before {
+      background: var(--amb)
+    }
+
+    .kpi.k-med::before {
+      background: var(--yel)
+    }
+
+    .kpi.k-low::before {
+      background: var(--grn)
+    }
+
+    .kpi-n {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 30px;
+      font-weight: 700;
+      line-height: 1;
+      margin-bottom: 3px
+    }
+
+    .kpi-l {
+      font-size: 9.5px;
+      color: var(--t2);
+      text-transform: uppercase;
+      letter-spacing: .6px
+    }
+
+    .kpi-delta {
+      font-size: 10px;
+      color: var(--t2);
+      margin-top: 2px;
+      font-family: 'IBM Plex Mono', monospace
+    }
+
+    /* ── Cards ── */
+    .card {
+      background: var(--s1);
+      border: 1px solid var(--ln1);
+      border-radius: var(--r2);
+      overflow: hidden;
+      margin-bottom: 12px
+    }
+
+    .card-head {
+      background: var(--s2);
+      border-bottom: 1px solid var(--ln1);
+      padding: 8px 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between
+    }
+
+    .card-title {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 13px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: .4px;
+      color: var(--t0)
+    }
+
+    .card-body {
+      padding: 12px
+    }
+
+    .card-toolbar {
+      display: flex;
+      gap: 6px;
+      align-items: center
+    }
+
+    /* ── Grid layouts ── */
+    .g2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px
+    }
+
+    .g3 {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 12px
+    }
+
+    .g13 {
+      display: grid;
+      grid-template-columns: 1fr 3fr;
+      gap: 12px
+    }
+
+    .g31 {
+      display: grid;
+      grid-template-columns: 3fr 1fr;
+      gap: 12px
+    }
+
+    /* ── Table ── */
+    .tbl {
+      width: 100%;
+      border-collapse: collapse
+    }
+
+    .tbl th {
+      padding: 6px 10px;
+      text-align: left;
+      font-size: 9.5px;
+      color: var(--t2);
+      text-transform: uppercase;
+      letter-spacing: .6px;
+      border-bottom: 1px solid var(--ln1);
+      background: var(--s2);
+      font-weight: 600
+    }
+
+    .tbl td {
+      padding: 7px 10px;
+      border-bottom: 1px solid var(--ln1);
+      font-size: 12px;
+      vertical-align: middle
+    }
+
+    .tbl tr:last-child td {
+      border-bottom: none
+    }
+
+    .tbl tr:hover td {
+      background: var(--s2)
+    }
+
+    .tbl .mono {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 11px
+    }
+
+    /* ── Severity badges ── */
+    .sev {
+      display: inline-flex;
+      align-items: center;
+      padding: 2px 7px;
+      border-radius: 3px;
+      font-size: 9.5px;
+      font-weight: 700;
+      font-family: 'IBM Plex Mono', monospace;
+      letter-spacing: .3px
+    }
+
+    .s-crit,
+    .s-CRITICAL {
+      background: #e53e4d22;
+      color: var(--red);
+      border: 1px solid #e53e4d33
+    }
+
+    .s-high,
+    .s-HIGH {
+      background: #f5a14222;
+      color: var(--amb);
+      border: 1px solid #f5a14233
+    }
+
+    .s-med,
+    .s-MEDIUM {
+      background: #f9ca4f22;
+      color: var(--yel);
+      border: 1px solid #f9ca4f33
+    }
+
+    .s-low,
+    .s-LOW {
+      background: #3dd4a022;
+      color: var(--grn);
+      border: 1px solid #3dd4a033
+    }
+
+    /* ── Confidence bar ── */
+    .cbar {
+      display: flex;
+      align-items: center;
+      gap: 5px
+    }
+
+    .cbar-track {
+      height: 4px;
+      background: var(--s4);
+      border-radius: 2px;
+      flex: 1;
+      max-width: 80px
+    }
+
+    .cbar-fill {
+      height: 100%;
+      border-radius: 2px;
+      transition: width .3s
+    }
+
+    .cbar-pct {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 10px;
+      color: var(--t1);
+      min-width: 28px
+    }
+
+    /* ── Alert row ── */
+    .alert-row {
+      display: grid;
+      grid-template-columns: 120px 72px 110px 1fr 100px 80px;
+      gap: 8px;
+      padding: 7px 12px;
+      border-bottom: 1px solid var(--ln1);
+      align-items: center;
+      cursor: pointer;
+      transition: background .1s
+    }
+
+    .alert-row:hover {
+      background: var(--s2)
+    }
+
+    .alert-row.selected {
+      background: var(--s3);
+      border-left: 2px solid var(--blue)
+    }
+
+    .alert-row .mono {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 10.5px
+    }
+
+    .mitre-tag {
+      display: inline-flex;
+      align-items: center;
+      padding: 1px 5px;
+      background: var(--vio)18;
+      border: 1px solid var(--vio)33;
+      border-radius: 2px;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 9.5px;
+      color: var(--vio)
+    }
+
+    /* ── Filter bar ── */
+    .filter-bar {
+      display: flex;
+      gap: 8px;
+      padding: 8px 12px;
+      border-bottom: 1px solid var(--ln1);
+      background: var(--s2);
+      flex-wrap: wrap;
+      align-items: center
+    }
+
+    .inp {
+      background: var(--s3);
+      border: 1px solid var(--ln2);
+      border-radius: var(--r);
+      padding: 5px 9px;
+      color: var(--t0);
+      font-size: 12px;
+      font-family: 'IBM Plex Sans', sans-serif;
+      outline: none;
+      transition: border-color .15s
+    }
+
+    .inp:focus {
+      border-color: var(--blue)
+    }
+
+    .sel {
+      background: var(--s3);
+      border: 1px solid var(--ln2);
+      border-radius: var(--r);
+      padding: 5px 9px;
+      color: var(--t0);
+      font-size: 12px;
+      outline: none;
+      cursor: pointer
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 5px 10px;
+      border-radius: var(--r);
+      border: 1px solid var(--ln2);
+      background: var(--s3);
+      color: var(--t0);
+      font-size: 11.5px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all .15s;
+      font-family: 'IBM Plex Sans', sans-serif
+    }
+
+    .btn:hover {
+      background: var(--s4);
+      border-color: var(--t2)
+    }
+
+    .btn-blue {
+      background: var(--blue)22;
+      border-color: var(--blue)55;
+      color: var(--blue)
+    }
+
+    .btn-blue:hover {
+      background: var(--blue)33
+    }
+
+    .btn-red {
+      background: var(--red)22;
+      border-color: var(--red)55;
+      color: var(--red)
+    }
+
+    .btn-red:hover {
+      background: var(--red)33
+    }
+
+    .btn-grn {
+      background: var(--grn)22;
+      border-color: var(--grn)55;
+      color: var(--grn)
+    }
+
+    /* ── Investigation Panel ── */
+    .inv-layout {
+      display: grid;
+      grid-template-columns: 340px 1fr;
+      gap: 12px;
+      min-height: 600px
+    }
+
+    .inv-queue {
+      background: var(--s1);
+      border: 1px solid var(--ln1);
+      border-radius: var(--r2);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column
+    }
+
+    .inv-queue-hd {
+      background: var(--s2);
+      border-bottom: 1px solid var(--ln1);
+      padding: 8px 12px;
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 13px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: .4px
+    }
+
+    .inv-list {
+      overflow-y: auto;
+      flex: 1
+    }
+
+    .inv-row {
+      padding: 8px 12px;
+      border-bottom: 1px solid var(--ln1);
+      cursor: pointer;
+      transition: background .1s
+    }
+
+    .inv-row:hover {
+      background: var(--s2)
+    }
+
+    .inv-row.active {
+      background: var(--s3);
+      border-left: 2px solid var(--blue)
+    }
+
+    .inv-row-type {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 11px;
+      color: var(--t0);
+      font-weight: 500
+    }
+
+    .inv-row-meta {
+      font-size: 10.5px;
+      color: var(--t1);
+      margin-top: 2px
+    }
+
+    /* ── Detail Panel ── */
+    .det-panel {
+      background: var(--s1);
+      border: 1px solid var(--ln1);
+      border-radius: var(--r2);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column
+    }
+
+    .det-head {
+      background: var(--s2);
+      border-bottom: 1px solid var(--ln1);
+      padding: 10px 14px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap
+    }
+
+    .det-title {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 17px;
+      font-weight: 700;
+      flex: 1
+    }
+
+    .det-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 14px
+    }
+
+    /* ── Detail tabs ── */
+    .det-tabs {
+      display: flex;
+      gap: 0;
+      border-bottom: 1px solid var(--ln1);
+      background: var(--s2)
+    }
+
+    .det-tab {
+      padding: 7px 14px;
+      font-size: 11.5px;
+      font-weight: 500;
+      cursor: pointer;
+      color: var(--t1);
+      border-bottom: 2px solid transparent;
+      transition: all .15s;
+      white-space: nowrap
+    }
+
+    .det-tab:hover {
+      color: var(--t0);
+      background: var(--s3)
+    }
+
+    .det-tab.active {
+      color: var(--blue);
+      border-bottom-color: var(--blue)
+    }
+
+    .det-pane {
+      display: none;
+      padding: 12px 14px
+    }
+
+    .det-pane.active {
+      display: block
+    }
+
+    /* ── Key-value rows ── */
+    .kv {
+      display: grid;
+      grid-template-columns: 160px 1fr;
+      gap: 4px 12px;
+      align-items: start;
+      margin-bottom: 4px
+    }
+
+    .kv-k {
+      font-size: 11px;
+      color: var(--t2);
+      font-weight: 500;
+      padding-top: 1px
+    }
+
+    .kv-v {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 11px;
+      color: var(--t0);
+      word-break: break-all
+    }
+
+    .kv-section {
+      font-size: 9px;
+      color: var(--t3);
+      text-transform: uppercase;
+      letter-spacing: .8px;
+      font-weight: 600;
+      grid-column: 1/-1;
+      margin-top: 10px;
+      margin-bottom: 4px;
+      padding-bottom: 3px;
+      border-bottom: 1px solid var(--ln1)
+    }
+
+    /* ── Payload viewer ── */
+    .payload-box {
+      background: var(--bg);
+      border: 1px solid var(--ln2);
+      border-radius: var(--r);
+      padding: 10px 12px;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 10.5px;
+      color: var(--teal);
+      white-space: pre-wrap;
+      word-break: break-all;
+      max-height: 200px;
+      overflow-y: auto;
+      line-height: 1.5
+    }
+
+    .payload-label {
+      font-size: 9.5px;
+      color: var(--t2);
+      text-transform: uppercase;
+      letter-spacing: .5px;
+      margin-bottom: 5px;
+      font-weight: 600
+    }
+
+    .payload-highlight {
+      color: var(--red);
+      font-weight: 600
+    }
+
+    /* ── ML feature heatmap ── */
+    .feat-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 6px
+    }
+
+    .feat-cell {
+      background: var(--s2);
+      border: 1px solid var(--ln1);
+      border-radius: var(--r);
+      padding: 7px 9px
+    }
+
+    .feat-name {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 9.5px;
+      color: var(--t1);
+      margin-bottom: 3px
+    }
+
+    .feat-val {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 16px;
+      font-weight: 600
+    }
+
+    .feat-bar {
+      height: 3px;
+      background: var(--s4);
+      border-radius: 2px;
+      margin-top: 4px
+    }
+
+    .feat-bar-fill {
+      height: 100%;
+      border-radius: 2px;
+      background: var(--blue)
+    }
+
+    .feat-anomaly .feat-name {
+      color: var(--red)
+    }
+
+    .feat-anomaly .feat-bar-fill {
+      background: var(--red)
+    }
+
+    /* ── Timeline ── */
+    .tl-canvas-wrap {
+      position: relative;
+      height: 220px
+    }
+
+    .tl-feed {
+      max-height: 300px;
+      overflow-y: auto
+    }
+
+    .tl-entry {
+      display: flex;
+      gap: 10px;
+      padding: 6px 0;
+      border-bottom: 1px solid var(--ln1);
+      align-items: flex-start
+    }
+
+    .tl-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      margin-top: 3px
+    }
+
+    .tl-time {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 10px;
+      color: var(--t2);
+      flex-shrink: 0;
+      width: 48px
+    }
+
+    .tl-text {
+      font-size: 11.5px;
+      color: var(--t0);
+      flex: 1
+    }
+
+    .tl-ip {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 10.5px;
+      color: var(--blue)
+    }
+
+    /* ── MITRE matrix ── */
+    .mitre-matrix {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 4px
+    }
+
+    .mitre-col-hd {
+      font-size: 9px;
+      color: var(--t2);
+      text-transform: uppercase;
+      letter-spacing: .5px;
+      font-weight: 600;
+      text-align: center;
+      padding: 4px;
+      border-bottom: 1px solid var(--ln1);
+      margin-bottom: 4px
+    }
+
+    .mitre-cell {
+      background: var(--s2);
+      border: 1px solid var(--ln1);
+      border-radius: 3px;
+      padding: 5px 6px;
+      font-size: 9px;
+      line-height: 1.3;
+      cursor: pointer;
+      transition: all .15s
+    }
+
+    .mitre-cell:hover {
+      background: var(--s3)
+    }
+
+    .mitre-cell.hit {
+      border-color: var(--red)66;
+      background: var(--red)15
+    }
+
+    .mitre-cell.hit:hover {
+      background: var(--red)25
+    }
+
+    .mitre-cell .mc-id {
+      font-family: 'IBM Plex Mono', monospace;
+      color: var(--t2);
+      font-size: 8.5px
+    }
+
+    .mitre-cell .mc-name {
+      color: var(--t0);
+      margin-top: 1px;
+      font-weight: 500
+    }
+
+    .mitre-cell.hit .mc-name {
+      color: var(--red)
+    }
+
+    .mitre-cell .mc-count {
+      font-family: 'IBM Plex Mono', monospace;
+      color: var(--red);
+      font-size: 8px;
+      font-weight: 600;
+      margin-top: 2px
+    }
+
+    /* ── Geo map ── */
+    #map {
+      height: 240px;
+      border-radius: var(--r);
+      overflow: hidden
+    }
+
+    .leaflet-tile-pane {
+      filter: brightness(.35) contrast(1.3) saturate(.4)
+    }
+
+    /* ── Live PPS chart ── */
+    .pps-wrap {
+      height: 80px;
+      position: relative
+    }
+
+    /* ── Toast ── */
+    .toast-wrap {
+      position: fixed;
+      bottom: 16px;
+      right: 16px;
+      z-index: 9999;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      pointer-events: none
+    }
+
+    .toast {
+      background: var(--s2);
+      border: 1px solid var(--ln2);
+      border-radius: var(--r2);
+      padding: 8px 14px;
+      font-size: 12px;
+      animation: slideIn .2s ease;
+      pointer-events: none;
+      max-width: 320px;
+      border-left: 3px solid var(--blue)
+    }
+
+    .toast.t-CRITICAL,
+    .toast.t-HIGH {
+      border-left-color: var(--red)
+    }
+
+    .toast.t-MEDIUM {
+      border-left-color: var(--amb)
+    }
+
+    .toast.t-LOW {
+      border-left-color: var(--grn)
+    }
+
+    @keyframes slideIn {
+      from {
+        opacity: 0;
+        transform: translateX(20px)
+      }
+
+      to {
+        opacity: 1;
+        transform: translateX(0)
+      }
+    }
+
+    /* ── Scrollbar ── */
+    ::-webkit-scrollbar {
+      width: 5px;
+      height: 5px
+    }
+
+    ::-webkit-scrollbar-track {
+      background: var(--s1)
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: var(--s4);
+      border-radius: 3px
+    }
+
+    /* ── Misc ── */
+    .mono {
+      font-family: 'IBM Plex Mono', monospace
+    }
+
+    .t1 {
+      color: var(--t1)
+    }
+
+    .t2 {
+      color: var(--t2)
+    }
+
+    .red {
+      color: var(--red)
+    }
+
+    .grn {
+      color: var(--grn)
+    }
+
+    .blu {
+      color: var(--blue)
+    }
+
+    .amb {
+      color: var(--amb)
+    }
+
+    .vio {
+      color: var(--vio)
+    }
+
+    .teal {
+      color: var(--teal)
+    }
+
+    .divider {
+      border: none;
+      border-top: 1px solid var(--ln1);
+      margin: 10px 0
+    }
+
+    canvas {
+      display: block
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="topbar">
+    <div class="tb-title">AI-NIDS <span style="font-weight:400;font-size:13px;color:var(--t1)">Network Intrusion
+        Detection System</span></div>
+    <div class="tb-badge"><span class="pulse"></span><span id="tb-mode" class="mono">demo</span></div>
+    <div class="tb-badge"><span class="mono" id="tb-pps">0</span><span style="color:var(--t2)"> pps</span></div>
+    <div class="tb-badge mono" id="tb-time">--:--:-- UTC</div>
+    <div class="tb-badge" id="tb-model" style="color:var(--vio)">ML: untrained</div>
+  </div>
+
+  <div class="shell">
+
+    <!-- Sidebar -->
+    <div class="sidebar">
+      <div class="brand">
+        <div class="brand-icon">&#x1F6E1;</div>
+        <div>
+          <div class="brand-name">AI-NIDS</div>
+          <div class="brand-ver">v4.0 · Production Engine</div>
+        </div>
+      </div>
+      <div class="nav-section">Monitoring</div>
+      <div class="nav-item active" onclick="nav('overview',this)">
+        <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+          <rect x="1" y="1" width="6" height="6" rx="1" />
+          <rect x="9" y="1" width="6" height="6" rx="1" />
+          <rect x="1" y="9" width="6" height="6" rx="1" />
+          <rect x="9" y="9" width="6" height="6" rx="1" />
+        </svg>Overview
+      </div>
+      <div class="nav-item" onclick="nav('alerts',this)">
+        <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M8 2L2 13h12L8 2z" />
+          <line x1="8" y1="7" x2="8" y2="10" />
+          <circle cx="8" cy="12" r=".5" fill="currentColor" />
+        </svg>Alert Stream
+        <span id="nav-badge"
+          style="margin-left:auto;background:var(--red)33;color:var(--red);font-size:9px;font-weight:700;padding:1px 5px;border-radius:10px;font-family:monospace">0</span>
+      </div>
+      <div class="nav-item" onclick="nav('timeline',this)">
+        <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M2 8h12M8 2v12" />
+          <circle cx="8" cy="8" r="2" />
+        </svg>Timeline
+      </div>
+      <div class="nav-section">Intelligence</div>
+      <div class="nav-item" onclick="nav('mitre',this)">
+        <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+          <polygon points="8,2 15,13 1,13" />
+          <line x1="8" y1="6" x2="8" y2="9" />
+        </svg>MITRE ATT&CK
+      </div>
+      <div class="nav-item" onclick="nav('payload',this)">
+        <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+          <rect x="2" y="3" width="12" height="10" rx="1" />
+          <line x1="5" y1="7" x2="11" y2="7" />
+          <line x1="5" y1="10" x2="8" y2="10" />
+        </svg>Payload Inspector
+      </div>
+      <div class="nav-item" onclick="nav('threat',this)">
+        <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+          <circle cx="8" cy="8" r="6" />
+          <line x1="8" y1="5" x2="8" y2="8" />
+          <circle cx="8" cy="11" r=".5" fill="currentColor" />
+        </svg>Threat Intel
+      </div>
+      <div class="nav-section">Analysis</div>
+      <div class="nav-item" onclick="nav('ml',this)">
+        <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+          <circle cx="4" cy="8" r="2" />
+          <circle cx="12" cy="4" r="2" />
+          <circle cx="12" cy="12" r="2" />
+          <line x1="6" y1="7" x2="10" y2="5" />
+          <line x1="6" y1="9" x2="10" y2="11" />
+        </svg>ML Analytics
+      </div>
+      <div class="nav-item" onclick="nav('investigate',this)">
+        <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+          <circle cx="7" cy="7" r="4" />
+          <line x1="10" y1="10" x2="14" y2="14" />
+        </svg>Investigate
+      </div>
+      <div class="nav-section">Response</div>
+      <div class="nav-item" onclick="nav('blocked',this)">
+        <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+          <circle cx="8" cy="8" r="6" />
+          <line x1="5" y1="5" x2="11" y2="11" />
+        </svg>Blocked IPs
+      </div>
+      <div class="nav-item" onclick="nav('flows',this)">
+        <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M2 4h4l2 4 2-4h4" />
+          <path d="M2 12h4l2-4 2 4h4" />
+        </svg>Network Flows
+      </div>
+    </div>
+
+    <!-- Main -->
+    <div class="main">
+
+      <!-- ═══ OVERVIEW ═══ -->
+      <div class="content active" id="view-overview">
+        <div class="kpis">
+          <div class="kpi k-total">
+            <div class="kpi-n blu" id="k-total">0</div>
+            <div class="kpi-l">Total Alerts</div>
+            <div class="kpi-delta" id="k-rate">0/min</div>
+          </div>
+          <div class="kpi k-crit">
+            <div class="kpi-n red" id="k-crit">0</div>
+            <div class="kpi-l">Critical</div>
+          </div>
+          <div class="kpi k-high">
+            <div class="kpi-n amb" id="k-high">0</div>
+            <div class="kpi-l">High</div>
+          </div>
+          <div class="kpi k-med">
+            <div class="kpi-n yel" id="k-med">0</div>
+            <div class="kpi-l">Medium</div>
+          </div>
+          <div class="kpi k-low">
+            <div class="kpi-n grn" id="k-low">0</div>
+            <div class="kpi-l">Low</div>
+          </div>
+        </div>
+        <div class="g2" style="margin-bottom:12px">
+          <div class="card" style="margin:0">
+            <div class="card-head"><span class="card-title">Packet Rate</span><span class="mono t2"
+                style="font-size:10px" id="ov-pps-val">0 pps</span></div>
+            <div class="card-body" style="padding:10px 12px">
+              <div class="pps-wrap"><canvas id="pps-chart"></canvas></div>
+            </div>
+          </div>
+          <div class="card" style="margin:0">
+            <div class="card-head"><span class="card-title">Protocol Mix</span></div>
+            <div class="card-body" style="padding:8px 12px" id="proto-bars">
+              <div
+                style="height:80px;display:flex;align-items:center;justify-content:center;color:var(--t2);font-size:12px">
+                Waiting for traffic…</div>
+            </div>
+          </div>
+        </div>
+        <div class="g3">
+          <div class="card" style="margin:0;grid-column:span 2">
+            <div class="card-head"><span class="card-title">Recent Alerts</span></div>
+            <div style="max-height:260px;overflow-y:auto">
+              <div
+                style="display:grid;grid-template-columns:120px 72px 110px 1fr 100px 80px;gap:8px;padding:5px 12px;background:var(--s2);border-bottom:1px solid var(--ln1)">
+                <span class="t2" style="font-size:9.5px;text-transform:uppercase;letter-spacing:.5px">Time</span>
+                <span class="t2" style="font-size:9.5px;text-transform:uppercase;letter-spacing:.5px">Sev</span>
+                <span class="t2" style="font-size:9.5px;text-transform:uppercase;letter-spacing:.5px">Source IP</span>
+                <span class="t2" style="font-size:9.5px;text-transform:uppercase;letter-spacing:.5px">Type</span>
+                <span class="t2" style="font-size:9.5px;text-transform:uppercase;letter-spacing:.5px">MITRE</span>
+                <span class="t2" style="font-size:9.5px;text-transform:uppercase;letter-spacing:.5px">Confidence</span>
+              </div>
+              <div id="ov-alert-feed"></div>
+            </div>
+          </div>
+          <div class="card" style="margin:0">
+            <div class="card-head"><span class="card-title">Top Attackers</span></div>
+            <div style="max-height:260px;overflow-y:auto">
+              <table class="tbl">
+                <thead>
+                  <tr>
+                    <th>IP</th>
+                    <th>Hits</th>
+                  </tr>
+                </thead>
+                <tbody id="ov-top-ips"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+        <div class="card" style="margin-top:12px">
+          <div class="card-head"><span class="card-title">Attack Geo Map</span></div>
+          <div class="card-body" style="padding:8px 12px">
+            <div id="map"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══ ALERT STREAM ═══ -->
+      <div class="content" id="view-alerts">
+        <div class="filter-bar">
+          <input class="inp" id="f-search" placeholder="Search IP, type, description…" style="width:200px"
+            oninput="applyFilters()" />
+          <select class="sel" id="f-sev" onchange="applyFilters()">
+            <option value="">All Severity</option>
+            <option>CRITICAL</option>
+            <option>HIGH</option>
+            <option>MEDIUM</option>
+            <option>LOW</option>
+          </select>
+          <select class="sel" id="f-type" onchange="applyFilters()">
+            <option value="">All Types</option>
+          </select>
+          <input class="inp" id="f-ip" placeholder="Filter IP…" style="width:130px" oninput="applyFilters()" />
+          <select class="sel" id="f-mitre" onchange="applyFilters()">
+            <option value="">All Tactics</option>
+          </select>
+          <button class="btn" onclick="clearFilters()">Clear</button>
+          <button class="btn btn-blue" onclick="exportSIEM('json')">Export JSON</button>
+          <button class="btn btn-blue" onclick="exportSIEM('cef')">Export CEF</button>
+          <button class="btn btn-blue" onclick="generateReport()">Report</button>
+          <span class="t2 mono" style="font-size:10px;margin-left:4px" id="f-count">0 alerts</span>
+        </div>
+        <div style="max-height:calc(100vh - 160px);overflow-y:auto">
+          <div
+            style="display:grid;grid-template-columns:120px 72px 110px 1fr 100px 80px;gap:8px;padding:6px 12px;background:var(--s2);border-bottom:1px solid var(--ln1);position:sticky;top:0;z-index:2">
+            <span class="t2" style="font-size:9.5px;text-transform:uppercase;letter-spacing:.5px">Time</span>
+            <span class="t2" style="font-size:9.5px;text-transform:uppercase;letter-spacing:.5px">Sev</span>
+            <span class="t2" style="font-size:9.5px;text-transform:uppercase;letter-spacing:.5px">Source IP</span>
+            <span class="t2" style="font-size:9.5px;text-transform:uppercase;letter-spacing:.5px">Type /
+              Description</span>
+            <span class="t2" style="font-size:9.5px;text-transform:uppercase;letter-spacing:.5px">MITRE</span>
+            <span class="t2" style="font-size:9.5px;text-transform:uppercase;letter-spacing:.5px">Confidence</span>
+          </div>
+          <div id="alert-stream-body"></div>
+        </div>
+      </div>
+
+      <!-- ═══ TIMELINE ═══ -->
+      <div class="content" id="view-timeline">
+        <div class="g2">
+          <div class="card" style="margin:0">
+            <div class="card-head"><span class="card-title">Alerts Over Time</span>
+              <div class="card-toolbar">
+                <select class="sel" id="tl-bucket" onchange="loadTimeline()" style="font-size:11px;padding:3px 6px">
+                  <option value="60">Last hour</option>
+                  <option value="360">6 hours</option>
+                  <option value="1440">24 hours</option>
+                </select>
+              </div>
+            </div>
+            <div class="card-body">
+              <div style="height:200px;position:relative"><canvas id="tl-chart"></canvas></div>
+            </div>
+          </div>
+          <div class="card" style="margin:0">
+            <div class="card-head"><span class="card-title">Attack Type Distribution</span></div>
+            <div class="card-body" style="display:flex;align-items:center;justify-content:center;height:200px"><canvas
+                id="type-donut" style="max-height:180px"></canvas></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-head"><span class="card-title">Event Feed</span></div>
+          <div class="card-body" style="padding:0">
+            <div class="tl-feed" id="tl-feed"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══ PAYLOAD INSPECTOR (NEW) ═══ -->
+      <div class="content" id="view-payload">
+        <div style="display:grid;grid-template-columns:340px 1fr;gap:12px;min-height:calc(100vh - 100px)">
+          <div class="card" style="margin:0">
+            <div class="card-head"><span class="card-title">Alerts with Payload Data</span></div>
+            <div style="overflow-y:auto;max-height:calc(100vh - 140px)" id="payload-queue">
+              <div style="padding:20px;text-align:center;color:var(--t2);font-size:12px">Waiting for alerts with payload
+                data…<br><span class="mono t2" style="font-size:10px">DNS tunneling, HTTP scanning, C2 traffic will
+                  appear here</span></div>
+            </div>
+          </div>
+          <div class="card" style="margin:0;display:flex;flex-direction:column">
+            <div class="card-head" id="pl-title"><span class="card-title">Select an alert to inspect payload</span>
+            </div>
+            <div style="overflow-y:auto;flex:1;padding:14px" id="pl-body">
+              <div style="color:var(--t2);font-size:12px;padding:20px 0">
+                <p style="margin-bottom:8px">The Payload Inspector shows the raw content extracted from captured
+                  packets.</p>
+                <p style="color:var(--t3);font-size:11px">Coverage depends on capture mode:<br>
+                  · <span class="grn mono">Scapy/PyShark</span>: Full payload, HTTP headers, DNS wire format, TLS
+                  ClientHello<br>
+                  · <span class="amb mono">AF_PACKET</span>: HTTP URI/UA, DNS query name (from raw bytes), ICMP type,
+                  TLS hello detection<br>
+                  · <span class="red mono">Demo</span>: Simulated payloads for testing detection logic</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══ MITRE ATT&CK ═══ -->
+      <div class="content" id="view-mitre">
+        <div class="g2">
+          <div class="card" style="margin:0">
+            <div class="card-head"><span class="card-title">Tactic Coverage</span></div>
+            <div class="card-body" style="height:200px;position:relative"><canvas id="mitre-bar"></canvas></div>
+          </div>
+          <div class="card" style="margin:0">
+            <div class="card-head"><span class="card-title">Top Techniques</span></div>
+            <div style="overflow-y:auto;max-height:200px">
+              <table class="tbl">
+                <thead>
+                  <tr>
+                    <th>Technique</th>
+                    <th>Name</th>
+                    <th>Hits</th>
+                  </tr>
+                </thead>
+                <tbody id="mitre-tech-tbl"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-head"><span class="card-title">ATT&amp;CK Navigator — Observed Techniques</span></div>
+          <div class="card-body">
+            <div class="mitre-matrix" id="mitre-matrix"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══ THREAT INTEL ═══ -->
+      <div class="content" id="view-threat">
+        <div class="g2">
+          <div class="card" style="margin:0">
+            <div class="card-head"><span class="card-title">Feed Status</span></div>
+            <div class="card-body" id="ti-feeds">
+              <div class="t2" style="font-size:12px">Loading feed status…</div>
+            </div>
+          </div>
+          <div class="card" style="margin:0">
+            <div class="card-head"><span class="card-title">IP Reputation Lookup</span></div>
+            <div class="card-body">
+              <div style="display:flex;gap:8px;margin-bottom:12px">
+                <input class="inp" id="rep-ip" placeholder="Enter IP address…" style="flex:1" />
+                <button class="btn btn-blue" onclick="lookupIP()">Lookup</button>
+              </div>
+              <div id="rep-result" style="font-size:12px;color:var(--t1)">Enter an IP to check against all threat
+                intelligence feeds</div>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-head"><span class="card-title">Top Threat IPs</span></div>
+          <table class="tbl">
+            <thead>
+              <tr>
+                <th>IP</th>
+                <th>Score</th>
+                <th>Sources</th>
+                <th>Label</th>
+                <th>Alerts</th>
+              </tr>
+            </thead>
+            <tbody id="ti-top-ips"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ═══ ML ANALYTICS ═══ -->
+      <div class="content" id="view-ml">
+        <div class="g3">
+          <div class="card" style="margin:0">
+            <div class="card-head"><span class="card-title">Model Status</span></div>
+            <div class="card-body" id="ml-status-panel">Loading…</div>
+          </div>
+          <div class="card" style="margin:0">
+            <div class="card-head"><span class="card-title">Evaluation Metrics</span></div>
+            <div class="card-body" id="ml-eval-panel">Loading…</div>
+          </div>
+          <div class="card" style="margin:0">
+            <div class="card-head"><span class="card-title">Concept Drift</span></div>
+            <div class="card-body" id="ml-drift-panel">Loading…</div>
+          </div>
+        </div>
+        <div class="g2">
+          <div class="card" style="margin:0">
+            <div class="card-head"><span class="card-title">Model Versions</span>
+              <div class="card-toolbar">
+                <button class="btn btn-blue" style="font-size:10px;padding:3px 8px" onclick="forceRetrain()">Force
+                  Retrain</button>
+              </div>
+            </div>
+            <div style="overflow-y:auto;max-height:240px">
+              <table class="tbl" id="ml-versions-tbl">
+                <thead>
+                  <tr>
+                    <th>Version</th>
+                    <th>Timestamp</th>
+                    <th>Samples</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody id="ml-versions-body">
+                  <tr>
+                    <td colspan="4" style="text-align:center;color:var(--t2);padding:16px">No saved versions yet</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <div class="card" style="margin:0">
+            <div class="card-head"><span class="card-title">ML Anomaly Feed</span></div>
+            <div style="overflow-y:auto;max-height:240px" id="ml-anomaly-feed">
+              <div style="padding:16px;color:var(--t2);text-align:center;font-size:12px">No ML anomalies yet</div>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-head"><span class="card-title">Feature Breakdown — 18 Traffic Features</span></div>
+          <div class="card-body">
+            <div class="feat-grid" id="ml-feat-grid"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══ INVESTIGATE ═══ -->
+      <div class="content" id="view-investigate">
+        <div class="inv-layout">
+          <div class="inv-queue">
+            <div class="inv-queue-hd">Alert Queue <span class="mono t2" style="font-size:10px;font-weight:400"
+                id="inv-count">(0)</span></div>
+            <div class="inv-list" id="inv-list"></div>
+          </div>
+          <div class="det-panel" id="det-panel">
+            <div class="det-head" id="det-head">
+              <span class="det-title t2">Select an alert to investigate</span>
+            </div>
+            <div class="det-tabs" id="det-tabs" style="display:none">
+              <div class="det-tab active" onclick="showTab('summary',this)">Summary</div>
+              <div class="det-tab" onclick="showTab('payload',this)">Payload</div>
+              <div class="det-tab" onclick="showTab('ml-feat',this)">ML Features</div>
+              <div class="det-tab" onclick="showTab('response',this)">Response</div>
+              <div class="det-tab" onclick="showTab('raw',this)">Raw JSON</div>
+            </div>
+            <div class="det-body" id="det-body">
+              <div style="padding:40px;text-align:center;color:var(--t2);font-size:12px">
+                <svg viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="1" width="40" height="40"
+                  style="opacity:.3;margin-bottom:12px;display:block;margin-left:auto;margin-right:auto">
+                  <circle cx="18" cy="18" r="10" />
+                  <line x1="25" y1="25" x2="36" y2="36" />
+                </svg>
+                Select an alert from the queue to begin investigation.<br>
+                <span style="font-size:10.5px;color:var(--t3)">Shows payload content, ML feature breakdown, and block
+                  controls.</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══ BLOCKED ═══ -->
+      <div class="content" id="view-blocked">
+        <div class="card">
+          <div class="card-head"><span class="card-title">Blocked IPs</span>
+            <div class="card-toolbar">
+              <input class="inp" id="block-inp" placeholder="IP to block…" style="width:140px" />
+              <button class="btn btn-red" onclick="blockManual()">Block IP</button>
+            </div>
+          </div>
+          <div style="overflow-y:auto;max-height:calc(100vh - 180px)">
+            <table class="tbl">
+              <thead>
+                <tr>
+                  <th>IP Address</th>
+                  <th>Reason</th>
+                  <th>Blocked At</th>
+                  <th>Type</th>
+                  <th>iptables Command</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody id="blocked-body">
+                <tr>
+                  <td colspan="6" style="text-align:center;color:var(--t2);padding:20px">No blocked IPs</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══ FLOWS ═══ -->
+      <div class="content" id="view-flows">
+        <div class="card">
+          <div class="card-head"><span class="card-title">Active Network Flows</span>
+            <div class="card-toolbar">
+              <button class="btn" onclick="loadFlows()" style="font-size:11px">↻ Refresh</button>
+              <span class="mono t2" style="font-size:10px" id="flow-count">0 flows</span>
+            </div>
+          </div>
+          <div style="overflow-y:auto;max-height:calc(100vh - 180px)">
+            <table class="tbl">
+              <thead>
+                <tr>
+                  <th>Source</th>
+                  <th>Destination</th>
+                  <th>Proto</th>
+                  <th>State</th>
+                  <th>Pkts</th>
+                  <th>Bytes</th>
+                  <th>Duration</th>
+                </tr>
+              </thead>
+              <tbody id="flow-body">
+                <tr>
+                  <td colspan="7" style="text-align:center;color:var(--t2);padding:20px">Loading flows…</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div class="g2" style="margin-top:12px">
+          <div class="card" style="margin:0">
+            <div class="card-head"><span class="card-title">Capture Engine Stats</span></div>
+            <div class="card-body" id="cap-stats-panel">
+              <div style="color:var(--t2);font-size:12px">Loading…</div>
+            </div>
+          </div>
+          <div class="card" style="margin:0">
+            <div class="card-head"><span class="card-title">Feature Importance</span></div>
+            <div class="card-body" id="feat-imp-panel">
+              <div style="color:var(--t2);font-size:12px">Train ML model to see feature importance</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /main -->
+  </div><!-- /shell -->
+
+  <div class="toast-wrap" id="toast-wrap"></div>
+  <script>
+    // ── State ──────────────────────────────────────────────────────────────────
+    const S = {
+      alerts: [], filtered: [], selectedAlert: null, selectedInvAlert: null,
+      cnt: { total: 0, crit: 0, high: 0, med: 0, low: 0 },
+      ppsHist: new Array(60).fill(0), lastMin: 0,
+      attackerMap: {}, typeMap: {}, mitreMap: {}, tacticMap: {},
+      payloadAlerts: [],
+      mlAnomalies: [],
+    };
+
+    // ── Nav ────────────────────────────────────────────────────────────────────
+    function nav(id, el) {
+      document.querySelectorAll('.content').forEach(c => c.classList.remove('active'));
+      document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+      document.getElementById('view-' + id)?.classList.add('active');
+      if (el) el.classList.add('active');
+      document.querySelector('.tb-title').innerHTML = {
+        overview: 'AI-NIDS <span style="font-weight:400;font-size:13px;color:var(--t1)">Overview</span>',
+        alerts: 'AI-NIDS <span style="font-weight:400;font-size:13px;color:var(--t1)">Alert Stream</span>',
+        timeline: 'AI-NIDS <span style="font-weight:400;font-size:13px;color:var(--t1)">Attack Timeline</span>',
+        mitre: 'AI-NIDS <span style="font-weight:400;font-size:13px;color:var(--t1)">MITRE ATT&CK</span>',
+        payload: 'AI-NIDS <span style="font-weight:400;font-size:13px;color:var(--t1)">Payload Inspector</span>',
+        threat: 'AI-NIDS <span style="font-weight:400;font-size:13px;color:var(--t1)">Threat Intelligence</span>',
+        ml: 'AI-NIDS <span style="font-weight:400;font-size:13px;color:var(--t1)">ML Analytics</span>',
+        investigate: 'AI-NIDS <span style="font-weight:400;font-size:13px;color:var(--t1)">Investigate</span>',
+        blocked: 'AI-NIDS <span style="font-weight:400;font-size:13px;color:var(--t1)">Blocked IPs</span>',
+        flows: 'AI-NIDS <span style="font-weight:400;font-size:13px;color:var(--t1)">Network Flows</span>',
+      }[id] || 'AI-NIDS';
+      if (id === 'timeline') loadTimeline();
+      if (id === 'mitre') renderMitreMatrix();
+      if (id === 'threat') loadThreatIntel();
+      if (id === 'ml') loadMLPanel();
+      if (id === 'blocked') loadBlocked();
+      if (id === 'flows') { loadFlows(); loadCaptureStats(); loadFeatureImportance(); }
+    }
+
+    const esc = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    const setEl = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = String(v) };
+
+    // ── ICT Timestamp Helper (UTC+7) ────────────────────────────────────────────
+    function toICT(isoStr) {
+      if (!isoStr) return '—';
+      try {
+        const d = new Date(isoStr.endsWith('Z') ? isoStr : isoStr + 'Z');
+        const ict = new Date(d.getTime() + 7 * 3600000);
+        return ict.toISOString().slice(11, 19);
+      } catch { return isoStr.slice(11, 19) || '—'; }
+    }
+
+    // ── Clock (ICT = UTC+7) ─────────────────────────────────────────────────────
+    function ictTime() {
+      const now = new Date();
+      const ict = new Date(now.getTime() + 7 * 3600000);
+      return ict.toISOString().slice(11, 19) + ' ICT';
+    }
+    setInterval(() => setEl('tb-time', ictTime()), 1000);
+
+    // ── Data Connection (SSE + REST Polling) ─────────────────────────────────
+    let _pollSince = 0;
+
+    function connectDataStream() {
+      // Try SSE first for real-time events
+      try {
+        const evtSrc = new EventSource('/stream/nids');
+        evtSrc.onmessage = (e) => {
+          try {
+            const payload = JSON.parse(e.data);
+            if (payload.event === 'alert' && payload.data) ingestAlert(payload.data);
+            if (payload.event === 'stats' && payload.data) onStats(payload.data);
+          } catch (ex) { }
+        };
+        evtSrc.onerror = () => {
+          console.warn('SSE disconnected, using polling only');
+          evtSrc.close();
+        };
+      } catch (e) {
+        console.warn('SSE not available');
+      }
+
+      // Always run REST polling as primary data source
+      pollData();
+    }
+
+    function pollData() {
+      setInterval(async () => {
+        // Fetch alerts
+        try {
+          const r = await fetch('/api/alerts?limit=100');
+          const d = await r.json();
+          (d.alerts || []).forEach(a => {
+            if (!S.alerts.find(x => x.id === a.id)) ingestAlert(a);
+          });
+        } catch (e) { }
+        // Fetch traffic stats
+        try {
+          const r = await fetch('/api/traffic');
+          const d = await r.json();
+          onTrafficStats(d);
+        } catch (e) { }
+        // Fetch full stats snapshot
+        try {
+          const r = await fetch('/api/stats');
+          const d = await r.json();
+          if (d.ml) {
+            const el = document.getElementById('tb-model');
+            if (el) {
+              if (d.ml.trained) {
+                el.textContent = 'ML: ' + (d.ml.samples || 0).toLocaleString() + ' samples';
+                el.style.color = 'var(--grn)';
+              } else {
+                el.textContent = 'ML: accumulating';
+                el.style.color = 'var(--amb)';
+              }
+            }
+          }
+          if (d.capture) {
+            setEl('tb-mode', d.capture.mode || 'demo');
+          }
+        } catch (e) { }
+        // Poll stub events
+        try {
+          const r = await fetch('/api/poll?since=' + _pollSince + '&ns=/nids');
+          const d = await r.json();
+          _pollSince = d.ts || _pollSince;
+          (d.events || []).forEach(ev => {
+            if (ev.event === 'alert' && ev.data) {
+              if (!S.alerts.find(x => x.id === ev.data.id)) ingestAlert(ev.data);
+            }
+            if (ev.event === 'stats' && ev.data) onStats(ev.data);
+          });
+        } catch (e) { }
+      }, 2000);
+    }
+
+    function onStats(snap) {
+      if (snap.traffic) {
+        onTrafficStats(snap.traffic);
+      }
+      if (snap.capture) {
+        setEl('tb-mode', snap.capture.mode || 'demo');
+      }
+    }
+
+    connectDataStream();
+
+    // ── Ingest ─────────────────────────────────────────────────────────────────
+    function ingestAlert(a) {
+      if (S.alerts.find(x => x.id === a.id)) return;
+      S.alerts.unshift(a);
+      if (S.alerts.length > 1000) S.alerts.pop();
+      // Counts
+      S.cnt.total++;
+      const sev = (a.severity || 'LOW');
+      if (sev === 'CRITICAL') S.cnt.crit++;
+      else if (sev === 'HIGH') S.cnt.high++;
+      else if (sev === 'MEDIUM') S.cnt.med++;
+      else S.cnt.low++;
+      S.lastMin++;
+      // Maps
+      const ip = a.src_ip || '';
+      S.attackerMap[ip] = (S.attackerMap[ip] || 0) + 1;
+      const t = a.alert_type || 'UNKNOWN';
+      S.typeMap[t] = (S.typeMap[t] || 0) + 1;
+      const tec = a.mitre_technique;
+      if (tec) S.mitreMap[tec] = (S.mitreMap[tec] || 0) + 1;
+      const tac = a.mitre_tactic;
+      if (tac) S.tacticMap[tac] = (S.tacticMap[tac] || 0) + 1;
+      // Payload alerts
+      const d = a.details || {};
+      const hasPayload = d.dns_query || d.query || d.http_uri || d.http_payload || d.tls_ja3 || d.payload_preview || d.matched_pattern;
+      if (hasPayload) S.payloadAlerts.unshift(a);
+      if (a.alert_type === 'ML_ANOMALY') S.mlAnomalies.unshift(a);
+      // Update filter dropdowns
+      updateFilterDropdowns(a);
+      // Render
+      updateKPIs();
+      prependAlertRow(a);
+      prependOvRow(a);
+      addInvRow(a);
+      addTimelineEntry(a);
+      if (sev === 'CRITICAL' || sev === 'HIGH') showToast(a);
+      document.getElementById('nav-badge').textContent = S.cnt.total;
+      if (S.cnt.total % 5 === 0) updateTopIPs();
+      // Live payload queue update
+      if (hasPayload) prependPayloadRow(a);
+      if (a.alert_type === 'ML_ANOMALY') prependMLAnomaly(a);
+    }
+
+    function onTrafficStats(d) {
+      // Compute PPS from timeline buckets (most reliable) or fallback to d.pps
+      const tl = d.timeline || [];
+      let pps = d.pps || 0;
+      if (tl.length >= 2) {
+        // Average of last 3 timeline buckets for smooth, reliable PPS
+        const recent = tl.slice(-3);
+        pps = Math.round(recent.reduce((s, b) => s + (b.packets || 0), 0) / recent.length);
+      }
+      setEl('tb-pps', pps.toFixed ? pps.toFixed(1) : pps);
+      setEl('ov-pps-val', (pps.toFixed ? pps.toFixed(1) : pps) + ' pps');
+      // Build PPS history from timeline
+      if (tl.length > 0) {
+        S.ppsHist = new Array(Math.max(0, 60 - tl.length)).fill(0)
+          .concat(tl.slice(-60).map(b => b.packets || 0));
+      } else {
+        S.ppsHist.push(pps); S.ppsHist.shift();
+      }
+      updatePPSChart();
+      renderProtoMix(d.protocols || {});
+      const mode = d.mode || 'demo';
+      setEl('tb-mode', mode);
+    }
+
+    // ── KPIs ───────────────────────────────────────────────────────────────────
+    function updateKPIs() {
+      setEl('k-total', S.cnt.total);
+      setEl('k-crit', S.cnt.crit);
+      setEl('k-high', S.cnt.high);
+      setEl('k-med', S.cnt.med);
+      setEl('k-low', S.cnt.low);
+      setEl('k-rate', S.lastMin + '/min');
+      setInterval(() => S.lastMin = 0, 60000);
+    }
+
+    // ── Alert row builder ──────────────────────────────────────────────────────
+    const SEV_COLOR = { 'CRITICAL': 'var(--c-crit)', 'HIGH': 'var(--c-crit)', 'MEDIUM': 'var(--c-med)', 'LOW': 'var(--c-low)' };
+    const CONF_COLOR = c => c >= 85 ? 'var(--grn)' : c >= 65 ? 'var(--amb)' : 'var(--red)';
+
+    function mkAlertRow(a, clickable = true) {
+      const sev = a.severity || 'LOW';
+      const conf = a.confidence || 0;
+      const ts = toICT(a.timestamp || '');
+      const div = document.createElement('div');
+      div.className = 'alert-row';
+      div.innerHTML =
+        `<span class="mono t2" style="font-size:10px">${esc(ts)}</span>` +
+        `<span class="sev s-${sev}" style="font-size:9px">${sev}</span>` +
+        `<span class="mono blu" style="font-size:10.5px">${esc(a.src_ip || '—')}</span>` +
+        `<span style="font-size:11.5px;color:var(--t0)">${esc(a.alert_type || '?')}<br><span style="color:var(--t2);font-size:10px">${esc((a.description || '').slice(0, 70))}</span></span>` +
+        `<span class="mitre-tag" style="font-size:9px">${esc(a.mitre_technique || '—')}</span>` +
+        `<div class="cbar"><div class="cbar-track"><div class="cbar-fill" style="width:${conf}%;background:${CONF_COLOR(conf)}"></div></div><span class="cbar-pct">${conf}%</span></div>`;
+      if (clickable) div.onclick = () => openInvestigation(a);
+      return div;
+    }
+
+    function prependAlertRow(a) {
+      const body = document.getElementById('alert-stream-body');
+      if (!body) return;
+      if (document.getElementById('f-search')?.value || document.getElementById('f-sev')?.value ||
+        document.getElementById('f-ip')?.value || document.getElementById('f-type')?.value) return;
+      const row = mkAlertRow(a);
+      body.prepend(row);
+      while (body.children.length > 500) body.lastChild.remove();
+      setEl('f-count', body.children.length + ' alerts');
+    }
+
+    function prependOvRow(a) {
+      const feed = document.getElementById('ov-alert-feed');
+      if (!feed) return;
+      const row = mkAlertRow(a, false);
+      feed.prepend(row);
+      while (feed.children.length > 50) feed.lastChild.remove();
+    }
+
+    // ── Investigation ──────────────────────────────────────────────────────────
+    function addInvRow(a) {
+      const sev = a.severity || 'LOW';
+      const list = document.getElementById('inv-list');
+      if (!list) return;
+      const div = document.createElement('div');
+      div.className = 'inv-row';
+      div.innerHTML =
+        `<div style="display:flex;align-items:center;gap:7px;margin-bottom:3px">` +
+        `<span class="sev s-${sev}" style="font-size:9px">${sev}</span>` +
+        `<span class="inv-row-type">${esc(a.alert_type || '?')}</span></div>` +
+        `<div class="inv-row-meta"><span class="mono blu">${esc(a.src_ip || '—')}</span> · <span>${esc((a.timestamp || '').slice(11, 19))}</span></div>`;
+      div.onclick = () => openInvestigation(a, div);
+      list.prepend(div);
+      while (list.children.length > 200) list.lastChild.remove();
+      setEl('inv-count', '(' + list.children.length + ')');
+    }
+
+    function openInvestigation(a, rowEl) {
+      S.selectedInvAlert = a;
+      document.querySelectorAll('.inv-row').forEach(r => r.classList.remove('active'));
+      if (rowEl) rowEl.classList.add('active');
+      document.getElementById('det-tabs').style.display = '';
+      showTab('summary');
+      renderDetSummary(a);
+    }
+
+    function showTab(tab, el) {
+      document.querySelectorAll('.det-tab').forEach(t => t.classList.remove('active'));
+      if (el) el.classList.add('active');
+      else {
+        const tabs = document.querySelectorAll('.det-tab');
+        const names = ['summary', 'payload', 'ml-feat', 'response', 'raw'];
+        const i = names.indexOf(tab);
+        if (i >= 0) tabs[i].classList.add('active');
+      }
+      const a = S.selectedInvAlert;
+      if (!a) return;
+      const body = document.getElementById('det-body');
+      if (tab === 'summary') renderDetSummary(a);
+      else if (tab === 'payload') renderDetPayload(a);
+      else if (tab === 'ml-feat') renderDetMLFeat(a);
+      else if (tab === 'response') renderDetResponse(a);
+      else if (tab === 'raw') renderDetRaw(a);
+    }
+
+    function kv(k, v, mono = false) {
+      return `<div class="kv"><span class="kv-k">${esc(k)}</span><span class="kv-v ${mono ? 'mono' : ''}">${esc(v ?? '—')}</span></div>`;
+    }
+    function kvSection(label) { return `<div class="kv-section">${esc(label)}</div>`; }
+
+    function renderDetSummary(a) {
+      const body = document.getElementById('det-body');
+      const sev = a.severity || 'LOW';
+      const conf = a.confidence || 0;
+      const det = a.details || {};
+      body.innerHTML =
+        `<div class="det-pane active">` +
+        `<div style="display:flex;gap:8px;align-items:center;margin-bottom:12px;flex-wrap:wrap">` +
+        `<span class="sev s-${sev}">${sev}</span>` +
+        (conf ? `<div class="cbar"><div class="cbar-track" style="max-width:100px"><div class="cbar-fill" style="width:${conf}%;background:${CONF_COLOR(conf)}"></div></div><span class="cbar-pct">${conf}% confidence</span></div>` : '')
+        + (a.mitre_technique ? `<span class="mitre-tag">${esc(a.mitre_technique)}</span><span class="mitre-tag" style="color:var(--teal);border-color:var(--teal)44">${esc(a.mitre_tactic || '')}</span>` : '') +
+        `</div>` +
+        `<div style="background:var(--bg);border:1px solid var(--ln2);border-radius:3px;padding:9px 12px;margin-bottom:12px;font-size:11.5px;color:var(--t0);line-height:1.5">${esc(a.description || '')}</div>` +
+        kvSection('Identification') +
+        kv('Alert ID', a.id || '—', true) +
+        kv('Timestamp', (a.timestamp || '').replace('T', ' ').slice(0, 19) + ' UTC') +
+        kv('Alert Type', a.alert_type || '—', true) +
+        kvSection('Network') +
+        kv('Source IP', a.src_ip || '—', true) +
+        kv('Destination IP', a.dst_ip || '—', true) +
+        kv('Destination Port', a.dst_port || '—', true) +
+        kvSection('MITRE ATT&CK') +
+        kv('Tactic', a.mitre_tactic || '—') +
+        kv('Technique', (a.mitre_technique || '—') + ' — ' + (a.mitre_name || ''), true) +
+        kvSection('Scoring') +
+        kv('Confidence', conf + '%') +
+        kv('Threat Score', (a.threat_score || 0) + '/100') +
+        kvSection('Detection Details') +
+        Object.entries(det).filter(([k]) => !['top_anomalous_features', 'payload_preview', 'matched_pattern'].includes(k))
+          .map(([k, v]) => kv(k, typeof v === 'object' ? JSON.stringify(v, null, 1) : v, true)).join('') +
+        `</div>`;
+      // Also update header
+      document.getElementById('det-head').innerHTML =
+        `<span class="det-title">${esc(a.alert_type || '?')} <span class="t2" style="font-size:13px;font-weight:400">— ${esc(a.src_ip || '')}</span></span>` +
+        `<div style="display:flex;gap:6px">` +
+        (a.src_ip ? `<button class="btn btn-red" style="font-size:11px;padding:4px 10px" onclick="blockFromDetail('${esc(a.src_ip)}','${esc(a.alert_type || '')}')">Block IP</button>` : '') +
+        `<button class="btn" style="font-size:11px;padding:4px 10px" onclick="copyJSON()">Copy JSON</button>` +
+        (a.src_ip ? `<button class="btn btn-blue" style="font-size:11px;padding:4px 10px" onclick="downloadPCAP('${esc(a.id || '')}','${esc(a.src_ip || '')}')">Download PCAP</button>` : '') +
+        `</div>`;
+    }
+
+    function renderDetPayload(a) {
+      const body = document.getElementById('det-body');
+      const det = a.details || {};
+      const atype = a.alert_type || '';
+      let html = `<div class="det-pane active">`;
+
+      if (atype === 'DNS_TUNNELING' || atype === 'DNS_ANOMALY' || det.query || det.dns_query) {
+        html += `<div class="payload-label">DNS Query</div>`;
+        const q = det.query || det.dns_query || a.dns_query || '(not captured)';
+        const ent = det.entropy || det.dns_entropy || '';
+        html += `<div class="payload-box">${esc(q)}</div>`;
+        if (ent) html += `<div style="margin-top:6px;font-size:11px;color:var(--t1)">Shannon entropy: <span class="mono amb">${ent}</span> · Subdomain depth: <span class="mono">${det.subdomain_depth || '?'}</span></div>`;
+        if (det.subdomain_len) html += `<div style="font-size:11px;color:var(--t1)">Subdomain length: <span class="mono red">${det.subdomain_len}</span> chars <span class="t2">(>40 = likely tunneling)</span></div>`;
+      }
+
+      if (atype.includes('HTTP') || atype.includes('C2') || det.http_uri || det.http_payload || det.path) {
+        html += `<div class="payload-label" style="margin-top:12px">HTTP Request</div>`;
+        const uri = det.path || det.http_uri || '(URI not captured)';
+        const ua = det.user_agent || det.http_user_agent || '';
+        const matched = det.matched_pattern || det.matched || '';
+        const preview = det.payload_preview || '';
+        let reqStr = uri;
+        if (ua) reqStr += `\nUser-Agent: ${ua}`;
+        html += `<div class="payload-box">${esc(reqStr)}</div>`;
+        if (matched) html += `<div style="margin-top:8px"><div class="payload-label">Matched Pattern</div><div class="payload-box"><span class="payload-highlight">${esc(matched)}</span></div></div>`;
+        if (preview && preview !== uri) html += `<div style="margin-top:8px"><div class="payload-label">Payload Preview</div><div class="payload-box">${esc(preview.slice(0, 500))}</div></div>`;
+      }
+
+      if (atype.includes('TLS') || det.ja3_hash || det.tls_ja3) {
+        html += `<div class="payload-label" style="margin-top:12px">TLS Fingerprint (JA3)</div>`;
+        const ja3 = det.ja3_hash || det.tls_ja3 || '(not captured)';
+        const malware = det.malware_family || '';
+        html += `<div class="payload-box mono">${esc(ja3)}</div>`;
+        if (malware) html += `<div style="margin-top:6px;color:var(--red);font-size:11.5px">⚠ Matched malware family: <strong>${esc(malware)}</strong></div>`;
+        html += `<div style="margin-top:8px;font-size:11px;color:var(--t2)">JA3 is an MD5 fingerprint of the TLS ClientHello fields (version, ciphers, extensions, elliptic curves). Identical across sessions — useful for C2 detection even over HTTPS.</div>`;
+      }
+
+      if (atype === 'ML_ANOMALY' && det.top_anomalous_features) {
+        html += `<div class="payload-label" style="margin-top:12px">Top Anomalous Features (z-score)</div>`;
+        const feats = Array.isArray(det.top_anomalous_features) ? det.top_anomalous_features : [];
+        html += `<div style="display:flex;flex-direction:column;gap:6px;margin-top:4px">`;
+        feats.forEach(f => {
+          const z = f.z_score || 0;
+          const pct = Math.min(100, z * 15);
+          html += `<div style="display:flex;align-items:center;gap:10px">` +
+            `<span class="mono red" style="width:160px;font-size:11px">${esc(f.feature || f)}</span>` +
+            `<div style="flex:1;height:5px;background:var(--s4);border-radius:3px">` +
+            `<div style="width:${pct}%;height:100%;background:var(--red);border-radius:3px"></div></div>` +
+            `<span class="mono" style="font-size:10px;color:var(--amb);width:40px">${z.toFixed(1)}σ</span></div>`;
+        });
+        html += `</div>`;
+      }
+
+      if (!det.query && !det.dns_query && !det.http_uri && !det.http_payload && !det.path && !det.ja3_hash && !(atype.includes('ML'))) {
+        html += `<div style="color:var(--t2);font-size:12px;padding:12px 0">No payload data available for this alert type.<br>`;
+        html += `<span style="font-size:11px;color:var(--t3)">Payload data is captured by Scapy/PyShark modes. AF_PACKET captures DNS names, HTTP URIs, and TLS hellos. Demo mode provides simulated payloads.</span></div>`;
+      }
+
+      html += `</div>`;
+      body.innerHTML = html;
+    }
+
+    function renderDetMLFeat(a) {
+      const body = document.getElementById('det-body');
+      const det = a.details || {};
+      const features = [
+        ['packet_count', 'Packets / 5s window', 'Volume'],
+        ['byte_count', 'Total bytes / 5s', 'Volume'],
+        ['unique_dst_ips', 'Unique destination IPs', 'Spread'],
+        ['unique_dst_ports', 'Unique destination ports', 'Spread'],
+        ['syn_ratio', 'SYN / total TCP', 'TCP Flags'],
+        ['ack_ratio', 'ACK / total TCP', 'TCP Flags'],
+        ['rst_ratio', 'RST / total TCP', 'TCP Flags'],
+        ['fin_ratio', 'FIN / total TCP', 'TCP Flags'],
+        ['icmp_ratio', 'ICMP / total', 'Protocol'],
+        ['udp_ratio', 'UDP / total', 'Protocol'],
+        ['avg_pkt_size', 'Mean packet size (bytes)', 'Size'],
+        ['std_pkt_size', 'Std dev packet size', 'Size'],
+        ['avg_iat', 'Mean inter-arrival time (s)', 'Timing'],
+        ['std_iat', 'Std dev inter-arrival time', 'Timing'],
+        ['protocol_entropy', 'Protocol distribution entropy', 'Entropy'],
+        ['port_entropy', 'Destination port entropy', 'Entropy'],
+        ['uses_dns', 'DNS traffic present', 'Service'],
+        ['uses_tls', 'TLS traffic present', 'Service'],
+      ];
+      const topAnomalous = (det.top_anomalous_features || []).map(f => f.feature || f);
+      const isoScore = det.iso_forest_score;
+      const isoFlag = det.iso_flag;
+      const svmFlag = det.svm_flag;
+      const aeFlag = det.ae_flag;
+      let html = `<div class="det-pane active">`;
+      if (a.alert_type === 'ML_ANOMALY') {
+        html += `<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px">`;
+        const modelBadge = (name, flagged) =>
+          `<div style="background:${flagged ? 'var(--red)15' : 'var(--s2)'};border:1px solid ${flagged ? 'var(--red)55' : 'var(--ln1)'};border-radius:3px;padding:7px 10px;text-align:center">` +
+          `<div style="font-size:10px;color:var(--t2);margin-bottom:3px">${name}</div>` +
+          `<div style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:${flagged ? 'var(--red)' : 'var(--grn)'};font-weight:600">${flagged ? 'ANOMALY' : 'NORMAL'}</div></div>`;
+        html += modelBadge('Isolation Forest', isoFlag);
+        html += modelBadge('One-Class SVM', svmFlag);
+        html += modelBadge('Autoencoder', aeFlag);
+        html += `</div>`;
+        if (isoScore !== undefined) html += `<div style="margin-bottom:12px;font-size:11px;color:var(--t1)">IF anomaly score: <span class="mono amb">${Number(isoScore).toFixed(4)}</span> <span class="t2">(more negative = more anomalous)</span></div>`;
+      }
+      html += `<div class="feat-grid">`;
+      features.forEach(([fn, desc, cat]) => {
+        const val = det[fn];
+        const isTop = topAnomalous.includes(fn);
+        const displayVal = val === undefined ? '—' : typeof val === 'boolean' ? val ? 'Yes' : 'No' : Number(val).toFixed(3);
+        const barPct = val === undefined ? 0 : Math.min(100, Math.abs(Number(val) * 100));
+        html += `<div class="feat-cell ${isTop ? 'feat-anomaly' : ''}" title="${esc(desc)}">` +
+          `<div class="feat-name">${isTop ? '⚠ ' : ''}<span style="font-size:8px;color:var(--t3)">${esc(cat)}</span><br>${esc(fn)}</div>` +
+          `<div class="feat-val">${esc(displayVal)}</div>` +
+          `<div class="feat-bar"><div class="feat-bar-fill" style="width:${barPct}%"></div></div></div>`;
+      });
+      html += `</div></div>`;
+      body.innerHTML = html;
+    }
+
+    function renderDetResponse(a) {
+      const ip = a.src_ip || '';
+      const body = document.getElementById('det-body');
+      const iptables = `iptables -A INPUT -s ${ip} -j DROP`;
+      const iptables6 = `ip6tables -A INPUT -s ${ip} -j DROP`;
+      body.innerHTML = `<div class="det-pane active">` +
+        `<div style="margin-bottom:14px">` +
+        `<div class="payload-label">Recommended iptables Block</div>` +
+        `<div class="payload-box grn">${esc(iptables)}\n${esc(iptables6)}</div>` +
+        `<button class="btn btn-grn" style="margin-top:8px;font-size:11px" onclick="navigator.clipboard?.writeText('${esc(iptables)}');showToastMsg('Copied','LOW')">Copy Command</button>` +
+        `</div>` +
+        `<div style="margin-bottom:14px">` +
+        `<div class="payload-label">Block via API</div>` +
+        `<button class="btn btn-red" onclick="blockFromDetail('${esc(ip)}','${esc(a.alert_type || '')}')">Block ${esc(ip)} (adds to block list)</button>` +
+        `</div>` +
+        `<div style="margin-bottom:14px">` +
+        `<div class="payload-label">Download PCAP</div>` +
+        `<p style="color:var(--t1);font-size:11.5px;margin-bottom:8px">Downloads last 200 packets from ${esc(ip)} as a valid PCAP file. Open with Wireshark for deep inspection.</p>` +
+        `<button class="btn btn-blue" onclick="downloadPCAP('${esc(a.id || '')}','${esc(ip)}')">Download PCAP</button>` +
+        `</div>` +
+        `<div>` +
+        `<div class="payload-label">AbuseIPDB / OTX Lookup</div>` +
+        `<button class="btn" onclick="lookupIPExternal('${esc(ip)}','abuseipdb')">AbuseIPDB</button> ` +
+        `<button class="btn" onclick="lookupIPExternal('${esc(ip)}','otx')">AlienVault OTX</button>` +
+        `<div id="ext-lookup-result" style="margin-top:10px;font-size:11.5px"></div>` +
+        `</div>` +
+        `</div>`;
+    }
+
+    function renderDetRaw(a) {
+      const body = document.getElementById('det-body');
+      body.innerHTML = `<div class="det-pane active">` +
+        `<div class="payload-label">Raw Alert JSON</div>` +
+        `<div class="payload-box" style="max-height:500px">${esc(JSON.stringify(a, null, 2))}</div>` +
+        `<button class="btn" style="margin-top:8px;font-size:11px" onclick="navigator.clipboard?.writeText(JSON.stringify(S.selectedInvAlert,null,2));showToastMsg('Copied','LOW')">Copy JSON</button>` +
+        `</div>`;
+    }
+
+    // ── Payload Inspector view ─────────────────────────────────────────────────
+    function prependPayloadRow(a) {
+      const queue = document.getElementById('payload-queue');
+      if (!queue) return;
+      const placeholder = queue.querySelector('div[style*="text-align:center"]');
+      if (placeholder) placeholder.remove();
+      const sev = a.severity || 'LOW';
+      const div = document.createElement('div');
+      div.className = 'inv-row';
+      div.innerHTML =
+        `<div style="display:flex;align-items:center;gap:7px;margin-bottom:3px">` +
+        `<span class="sev s-${sev}" style="font-size:9px">${sev}</span>` +
+        `<span class="inv-row-type" style="font-size:11px">${esc(a.alert_type || '?')}</span></div>` +
+        `<div class="inv-row-meta"><span class="mono blu">${esc(a.src_ip || '—')}</span> · <span class="t2">${esc((a.timestamp || '').slice(11, 19))}</span></div>`;
+      div.onclick = () => openPayloadDetail(a);
+      queue.prepend(div);
+    }
+
+    function openPayloadDetail(a) {
+      document.querySelectorAll('#payload-queue .inv-row').forEach(r => r.classList.remove('active'));
+      event.currentTarget?.classList.add('active');
+      S.selectedInvAlert = a;
+      const title = document.getElementById('pl-title');
+      const body = document.getElementById('pl-body');
+      if (title) title.innerHTML = `<span class="card-title">${esc(a.alert_type || '?')} — Payload</span><span class="sev s-${a.severity || 'LOW'}" style="margin-left:8px">${esc(a.severity || 'LOW')}</span>`;
+      S.selectedInvAlert = a;
+      if (body) {
+        // Reuse renderDetPayload logic
+        const tmpBody = { innerHTML: '' };
+        const fakeDet = { innerHTML: '' };
+        // Create temp element
+        const tmp = document.createElement('div');
+        tmp.id = 'det-body';
+        tmp.style.display = 'none';
+        document.body.appendChild(tmp);
+        renderDetPayload(a);
+        body.innerHTML = document.getElementById('det-body').innerHTML;
+        tmp.remove();
+      }
+    }
+
+    // ── Response helpers ───────────────────────────────────────────────────────
+    async function blockFromDetail(ip, reason) {
+      try {
+        await fetch('/api/block', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ip, reason })
+        });
+        showToastMsg('Blocked ' + ip, 'CRITICAL');
+      } catch (e) { showToastMsg('Block failed: ' + e, 'LOW'); }
+    }
+    function copyJSON() { if (S.selectedInvAlert) navigator.clipboard?.writeText(JSON.stringify(S.selectedInvAlert, null, 2)); showToastMsg('Copied', 'LOW'); }
+    async function downloadPCAP(alertId, srcIp) {
+      if (!alertId || !srcIp) { showToastMsg('Alert or IP missing', 'LOW'); return; }
+      window.open(`/api/alerts/${encodeURIComponent(alertId)}/pcap?src_ip=${encodeURIComponent(srcIp)}`, '_blank');
+    }
+    async function lookupIPExternal(ip, source) {
+      const el = document.getElementById('ext-lookup-result');
+      if (!el) return;
+      el.innerHTML = `<span class="t2">Looking up ${ip}…</span>`;
+      try {
+        const r = await fetch(`/api/reputation/${ip}/${source}`);
+        const d = await r.json();
+        if (d.error) el.innerHTML = `<span class="red">${esc(d.error)}</span>`;
+        else el.innerHTML = `<div class="payload-box mono" style="max-height:120px;font-size:10px">${esc(JSON.stringify(d, null, 2))}</div>`;
+      } catch (e) { el.innerHTML = `<span class="red">Lookup failed (${source} key not configured?)</span>`; }
+    }
+
+    // ── Timeline ───────────────────────────────────────────────────────────────
+    function addTimelineEntry(a) {
+      const feed = document.getElementById('tl-feed');
+      if (!feed) return;
+      const sev = a.severity || 'LOW';
+      const dot = document.createElement('div');
+      dot.className = 'tl-entry';
+      const dotColor = { 'CRITICAL': 'var(--red)', 'HIGH': 'var(--amb)', 'MEDIUM': 'var(--yel)', 'LOW': 'var(--grn)' }[sev] || 'var(--grn)';
+      dot.innerHTML =
+        `<div class="tl-dot" style="background:${dotColor}"></div>` +
+        `<span class="tl-time">${toICT(a.timestamp)}</span>` +
+        `<div class="tl-text"><span class="tl-ip">${esc(a.src_ip || '')}</span> — ${esc(a.alert_type || '')} <span class="t2">${esc((a.description || '').slice(0, 60))}</span></div>`;
+      feed.prepend(dot);
+      while (feed.children.length > 200) feed.lastChild.remove();
+    }
+
+    let tlChart = null;
+    async function loadTimeline() {
+      const mins = document.getElementById('tl-bucket')?.value || 60;
+      try {
+        const r = await fetch(`/api/timeline?hours=${Math.ceil(mins / 60)}&buckets=${mins}`);
+        const d = await r.json();
+        const labels = (d.labels || []).map(l => l.slice(11, 16));
+        const critData = d.CRITICAL || new Array(labels.length).fill(0);
+        const highData = d.HIGH || new Array(labels.length).fill(0);
+        const medData = d.MEDIUM || new Array(labels.length).fill(0);
+        const lowData = d.LOW || new Array(labels.length).fill(0);
+        const ctx = document.getElementById('tl-chart')?.getContext('2d');
+        if (!ctx) return;
+        if (tlChart) tlChart.destroy();
+        tlChart = new Chart(ctx, {
+          type: 'bar',
+          data: {
+            labels, datasets: [
+              { label: 'Critical', data: critData, backgroundColor: '#e53e4d88' },
+              { label: 'High', data: highData, backgroundColor: '#f5a14288' },
+              { label: 'Medium', data: medData, backgroundColor: '#f9ca4f55' },
+              { label: 'Low', data: lowData, backgroundColor: '#3dd4a044' },
+            ]
+          },
+          options: {
+            responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { color: '#8e9ab8', font: { size: 10 } } } },
+            scales: {
+              x: { stacked: true, ticks: { color: '#4e5878', font: { size: 9 } }, grid: { color: '#1a2030' } },
+              y: { stacked: true, ticks: { color: '#4e5878', font: { size: 9 } }, grid: { color: '#1a2030' } }
+            }
+          }
+        });
+      } catch (e) { }
+      // Type donut
+      renderTypeDonut();
+    }
+
+    let typeDonut = null;
+    function renderTypeDonut() {
+      const ctx = document.getElementById('type-donut')?.getContext('2d');
+      if (!ctx) return;
+      const entries = Object.entries(S.typeMap).sort((a, b) => b[1] - a[1]).slice(0, 8);
+      if (!entries.length) return;
+      const COLORS = ['#4da8e0', '#9b74e8', '#22d3ee', '#3dd4a0', '#f5a142', '#e53e4d', '#f9ca4f', '#7c8ab8'];
+      if (typeDonut) typeDonut.destroy();
+      typeDonut = new Chart(ctx, {
+        type: 'doughnut',
+        data: { labels: entries.map(e => e[0]), datasets: [{ data: entries.map(e => e[1]), backgroundColor: COLORS, borderWidth: 0, hoverOffset: 4 }] },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { color: '#8e9ab8', font: { size: 9 }, boxWidth: 10, padding: 8 } } } }
+      });
+    }
+
+    // ── PPS Chart ──────────────────────────────────────────────────────────────
+    let ppsChart = null;
+    function updatePPSChart() {
+      const ctx = document.getElementById('pps-chart')?.getContext('2d');
+      if (!ctx) return;
+      const labels = S.ppsHist.map((_, i) => i === 59 ? 'now' : '');
+      if (!ppsChart) {
+        ppsChart = new Chart(ctx, {
+          type: 'line',
+          data: {
+            labels, datasets: [{
+              data: S.ppsHist, borderColor: '#4da8e0', borderWidth: 1.5, fill: true,
+              backgroundColor: 'rgba(77,168,224,0.08)', pointRadius: 0, tension: .4
+            }]
+          },
+          options: {
+            responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } },
+            scales: { x: { display: false }, y: { ticks: { color: '#4e5878', font: { size: 9 } }, grid: { color: '#1a2030' }, min: 0 } }
+          }
+        });
+      } else {
+        ppsChart.data.datasets[0].data = S.ppsHist;
+        ppsChart.update('none');
+      }
+    }
+
+    // ── Protocol mix ───────────────────────────────────────────────────────────
+    function renderProtoMix(protos) {
+      const el = document.getElementById('proto-bars');
+      if (!el) return;
+      const total = Object.values(protos).reduce((a, b) => a + b, 0) || 1;
+      const PCOLORS = { TCP: '#4da8e0', UDP: '#9b74e8', ICMP: '#f5a142', DNS: '#22d3ee', ARP: '#3dd4a0' };
+      el.innerHTML = Object.entries(protos).map(([p, c]) => {
+        const pct = (c / total * 100).toFixed(1);
+        return `<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">` +
+          `<span class="mono" style="width:40px;font-size:10px;color:${PCOLORS[p] || '#8e9ab8'}">${esc(p)}</span>` +
+          `<div style="flex:1;height:6px;background:var(--s4);border-radius:3px">` +
+          `<div style="width:${pct}%;height:100%;background:${PCOLORS[p] || '#8e9ab8'};border-radius:3px"></div></div>` +
+          `<span class="mono t2" style="font-size:10px;width:36px">${pct}%</span></div>`;
+      }).join('');
+    }
+
+    // ── Top IPs ────────────────────────────────────────────────────────────────
+    function updateTopIPs() {
+      const el = document.getElementById('ov-top-ips');
+      if (!el) return;
+      const sorted = Object.entries(S.attackerMap).sort((a, b) => b[1] - a[1]).slice(0, 8);
+      el.innerHTML = sorted.map(([ip, cnt]) =>
+        `<tr><td class="mono blu" style="font-size:11px">${esc(ip)}</td>` +
+        `<td class="mono red" style="font-size:11px">${cnt}</td></tr>`
+      ).join('') || '<tr><td colspan="2" style="text-align:center;color:var(--t2);padding:12px">No data yet</td></tr>';
+    }
+
+    // ── MITRE Matrix ───────────────────────────────────────────────────────────
+    const MITRE_MATRIX = [
+      { tactic: 'Reconnaissance', techniques: [{ id: 'T1595', name: 'Active Scanning' }, { id: 'T1592', name: 'Gather Host Info' }, { id: 'T1590', name: 'Gather Network Info' }] },
+      { tactic: 'Initial Access', techniques: [{ id: 'T1190', name: 'Exploit Public App' }, { id: 'T1078', name: 'Valid Accounts' }, { id: 'T1133', name: 'External Remote Services' }] },
+      { tactic: 'Discovery', techniques: [{ id: 'T1046', name: 'Network Service Scan' }, { id: 'T1018', name: 'Remote System Discovery' }, { id: 'T1049', name: 'System Network Connections' }] },
+      { tactic: 'Credential Access', techniques: [{ id: 'T1110', name: 'Brute Force' }, { id: 'T1557', name: 'AitM' }, { id: 'T1212', name: 'Exploit for Credentials' }] },
+      { tactic: 'Command & Control', techniques: [{ id: 'T1071', name: 'App Layer Protocol' }, { id: 'T1573', name: 'Encrypted Channel' }, { id: 'T1048', name: 'Exfil Over Alt Protocol' }, { id: 'T1499', name: 'Endpoint DoS' }] },
+      { tactic: 'Impact', techniques: [{ id: 'T1498', name: 'Network DoS' }, { id: 'T1499', name: 'Endpoint DoS' }, { id: 'T1001', name: 'Data Obfuscation' }] },
+      { tactic: 'Exfiltration', techniques: [{ id: 'T1048', name: 'Exfil Over Alt Protocol' }, { id: 'T1041', name: 'Exfil Over C2' }] },
+    ];
+    function renderMitreMatrix() {
+      const el = document.getElementById('mitre-matrix');
+      if (!el) return;
+      el.innerHTML = '';
+      MITRE_MATRIX.forEach(col => {
+        const colDiv = document.createElement('div');
+        const hd = document.createElement('div');
+        hd.className = 'mitre-col-hd';
+        hd.textContent = col.tactic;
+        colDiv.appendChild(hd);
+        col.techniques.forEach(t => {
+          const cnt = S.mitreMap[t.id] || 0;
+          const cell = document.createElement('div');
+          cell.className = 'mitre-cell' + (cnt ? ' hit' : '');
+          cell.innerHTML = `<div class="mc-id">${t.id}</div><div class="mc-name">${esc(t.name)}</div>${cnt ? `<div class="mc-count">×${cnt}</div>` : ''}`;
+          cell.onclick = () => filterByTechnique(t.id);
+          colDiv.appendChild(cell);
+        });
+        el.appendChild(colDiv);
+      });
+      // Tactic bar chart
+      const ctx = document.getElementById('mitre-bar')?.getContext('2d');
+      if (!ctx) return;
+      const entries = Object.entries(S.tacticMap).sort((a, b) => b[1] - a[1]);
+      if (!entries.length) return;
+      if (window._mitreBarChart) window._mitreBarChart.destroy();
+      window._mitreBarChart = new Chart(ctx, {
+        type: 'bar',
+        data: { labels: entries.map(e => e[0]), datasets: [{ data: entries.map(e => e[1]), backgroundColor: '#9b74e888', borderColor: '#9b74e8', borderWidth: 1 }] },
+        options: {
+          indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } },
+          scales: {
+            x: { ticks: { color: '#4e5878', font: { size: 9 } }, grid: { color: '#1a2030' } },
+            y: { ticks: { color: '#8e9ab8', font: { size: 10 } }, grid: { display: false } }
+          }
+        }
+      });
+      // Technique table
+      const tbody = document.getElementById('mitre-tech-tbl');
+      if (tbody) {
+        const techs = Object.entries(S.mitreMap).sort((a, b) => b[1] - a[1]).slice(0, 10);
+        tbody.innerHTML = techs.map(([tid, cnt]) => {
+          const name = MITRE_MATRIX.flatMap(c => c.techniques).find(t => t.id === tid)?.name || '';
+          return `<tr><td class="mono t2" style="font-size:10.5px">${esc(tid)}</td><td style="font-size:11px">${esc(name)}</td><td class="mono red" style="font-size:11px">${cnt}</td></tr>`;
+        }).join('');
+      }
+    }
+    function filterByTechnique(tid) {
+      nav('alerts', document.querySelector('.nav-item:nth-child(4)'));
+      const fi = document.getElementById('f-search');
+      if (fi) { fi.value = tid; applyFilters(); }
+    }
+
+    // ── Filters ────────────────────────────────────────────────────────────────
+    function updateFilterDropdowns(a) {
+      const typeEl = document.getElementById('f-type');
+      const mitreEl = document.getElementById('f-mitre');
+      if (typeEl && a.alert_type) {
+        const exists = [...typeEl.options].some(o => o.value === a.alert_type);
+        if (!exists) { const o = new Option(a.alert_type, a.alert_type); typeEl.appendChild(o); }
+      }
+      if (mitreEl && a.mitre_tactic) {
+        const exists = [...mitreEl.options].some(o => o.value === a.mitre_tactic);
+        if (!exists) { const o = new Option(a.mitre_tactic, a.mitre_tactic); mitreEl.appendChild(o); }
+      }
+    }
+    function applyFilters() {
+      const q = (document.getElementById('f-search')?.value || '').toLowerCase();
+      const sev = document.getElementById('f-sev')?.value || '';
+      const typ = document.getElementById('f-type')?.value || '';
+      const ip = document.getElementById('f-ip')?.value || '';
+      const mitre = document.getElementById('f-mitre')?.value || '';
+      S.filtered = S.alerts.filter(a => {
+        if (sev && a.severity !== sev) return false;
+        if (typ && a.alert_type !== typ) return false;
+        if (ip && !(a.src_ip || '').includes(ip) && !(a.dst_ip || '').includes(ip)) return false;
+        if (mitre && a.mitre_tactic !== mitre) return false;
+        if (q) { const hay = JSON.stringify(a).toLowerCase(); if (!hay.includes(q)) return false; }
+        return true;
+      });
+      const body = document.getElementById('alert-stream-body');
+      if (!body) return;
+      body.innerHTML = '';
+      S.filtered.slice(0, 500).forEach(a => body.appendChild(mkAlertRow(a)));
+      setEl('f-count', S.filtered.length + ' alerts');
+    }
+    function clearFilters() {
+      ['f-search', 'f-sev', 'f-type', 'f-ip', 'f-mitre'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = '';
+      });
+      applyFilters();
+    }
+
+    // ── Threat Intel ───────────────────────────────────────────────────────────
+    async function loadThreatIntel() {
+      try {
+        const r = await fetch('/api/threat_intel/stats');
+        const d = await r.json();
+        const el = document.getElementById('ti-feeds');
+        if (el) el.innerHTML =
+          `<div class="kv"><span class="kv-k">Total IPs tracked</span><span class="kv-v mono grn">${d.total_ips || 0}</span></div>` +
+          `<div class="kv"><span class="kv-k">High-risk IPs</span><span class="kv-v mono red">${d.high_risk_ips || 0}</span></div>` +
+          `<div class="kv"><span class="kv-k">CIDR blocks</span><span class="kv-v mono">${d.cidr_blocks || 0}</span></div>` +
+          `<div class="kv"><span class="kv-k">Active feeds</span><span class="kv-v mono">Feodo · TOR · ipsum · Spamhaus</span></div>` +
+          `<div class="kv"><span class="kv-k">API feeds</span><span class="kv-v mono t2">AbuseIPDB · AlienVault OTX (optional)</span></div>` +
+          `<button class="btn btn-blue" style="margin-top:10px;font-size:11px" onclick="refreshTI()">Refresh Feeds</button>`;
+      } catch (e) { }
+      try {
+        const r = await fetch('/api/reputation/top');
+        const d = await r.json();
+        const tbody = document.getElementById('ti-top-ips');
+        if (tbody) tbody.innerHTML = (d.ips || []).map(ip =>
+          `<tr><td class="mono blu">${esc(ip.ip || '?')}</td>` +
+          `<td><div style="display:flex;align-items:center;gap:6px"><div style="width:40px;height:5px;background:var(--s4);border-radius:3px"><div style="width:${ip.threat_score || 0}%;height:100%;background:var(--red);border-radius:3px"></div></div><span class="mono red" style="font-size:10px">${ip.threat_score || 0}</span></div></td>` +
+          `<td class="t2" style="font-size:10.5px">${esc((ip.sources || []).join(', '))}</td>` +
+          `<td style="font-size:11px">${esc(ip.label || '—')}</td>` +
+          `<td class="mono" style="font-size:10.5px">${ip.alert_count || 0}</td></tr>`
+        ).join('') || '<tr><td colspan="5" style="text-align:center;color:var(--t2);padding:16px">No threat intel data yet</td></tr>';
+      } catch (e) { }
+    }
+    async function lookupIP() {
+      const ip = document.getElementById('rep-ip')?.value?.trim();
+      if (!ip) return;
+      document.getElementById('rep-result').innerHTML = '<span class="t2">Looking up…</span>';
+      try {
+        const r = await fetch('/api/reputation/' + encodeURIComponent(ip));
+        const d = await r.json();
+        const el = document.getElementById('rep-result');
+        el.innerHTML = `<div class="payload-box mono" style="font-size:10px">${esc(JSON.stringify(d, null, 2))}</div>`;
+      } catch (e) { document.getElementById('rep-result').innerHTML = '<span class="red">Lookup failed</span>'; }
+    }
+    async function refreshTI() {
+      await fetch('/api/threat_intel/refresh', { method: 'POST' });
+      showToastMsg('Feed refresh started', 'LOW');
+    }
+
+    // ── ML Panel ───────────────────────────────────────────────────────────────
+    async function loadMLPanel() {
+      try {
+        const [infoR, driftR, versR] = await Promise.all([
+          fetch('/api/ml/info'), fetch('/api/ml/drift'), fetch('/api/ml/versions')
+        ]);
+        const info = await infoR.json();
+        const drift = await driftR.json();
+        const vers = await versR.json();
+        // Status
+        const sp = document.getElementById('ml-status-panel');
+        if (sp) sp.innerHTML =
+          kv('Trained', info.trained ? 'Yes' : 'No (accumulating traffic)') +
+          kv('Training samples', (info.samples || 0).toLocaleString()) +
+          kv('Models', (info.models || []).join(' + ')) +
+          kv('Features', info.features || 18) +
+          kv('Contamination', (info.contamination || .05) * 100 + '%') +
+          `<button class="btn btn-blue" style="margin-top:10px;font-size:11px" onclick="forceRetrain()">Force Retrain</button>`;
+        // Drift
+        const dp = document.getElementById('ml-drift-panel');
+        if (dp) {
+          const psi = drift.psi || 0;
+          const status = drift.status || 'unknown';
+          const statusColor = { 'stable': 'var(--grn)', 'moderate_drift': 'var(--amb)', 'severe_drift': 'var(--red)', 'unknown': 'var(--t2)' }[status] || 'var(--t2)';
+          const psiPct = Math.min(100, psi * 500);
+          dp.innerHTML =
+            `<div style="margin-bottom:10px"><div style="display:flex;justify-content:space-between;margin-bottom:4px"><span class="t2" style="font-size:11px">PSI Score</span><span class="mono" style="font-size:12px;color:${statusColor}">${psi.toFixed(4)}</span></div>` +
+            `<div style="height:6px;background:var(--s4);border-radius:3px"><div style="width:${psiPct}%;height:100%;background:${statusColor};border-radius:3px"></div></div></div>` +
+            `<div class="kv"><span class="kv-k">Status</span><span class="kv-v mono" style="color:${statusColor}">${esc(status)}</span></div>` +
+            `<div class="kv"><span class="kv-k">Meaning</span><span class="kv-v" style="font-size:11px">${esc(drift.interpretation || '')}</span></div>` +
+            `<div style="margin-top:8px;font-size:10.5px;color:var(--t2)">PSI < 0.10 stable · 0.10-0.20 review · > 0.20 retrain triggered</div>`;
+        }
+        // Versions
+        const tbody = document.getElementById('ml-versions-body');
+        if (tbody) {
+          const vlist = vers.versions || [];
+          tbody.innerHTML = vlist.length ? vlist.map(v =>
+            `<tr><td class="mono" style="font-size:10.5px">${esc(v.version_id || '?')}</td>` +
+            `<td class="t2" style="font-size:10.5px">${esc((v.timestamp || '—').slice(0, 16))}</td>` +
+            `<td class="mono" style="font-size:10.5px">${(v.train_samples || 0).toLocaleString()}</td>` +
+            `<td><button class="btn" style="font-size:10px;padding:2px 7px" onclick="rollbackTo('${esc(v.version_id || '')}')">Activate</button></td></tr>`
+          ).join('') : '<tr><td colspan="4" style="text-align:center;color:var(--t2);padding:16px">No saved versions yet</td></tr>';
+        }
+        // Features
+        renderMLFeatures(info.feature_names || []);
+      } catch (e) { console.warn('ML panel error:', e); }
+      // Eval metrics
+      try {
+        const r = await fetch('/api/ml/evaluate');
+        const d = await r.json();
+        const ep = document.getElementById('ml-eval-panel');
+        if (ep && d.metrics) {
+          const m = d.metrics;
+          const metricBar = (label, val) => { const pct = Math.round(val * 100); return `<div style="margin-bottom:8px"><div style="display:flex;justify-content:space-between;margin-bottom:3px"><span class="t2" style="font-size:11px">${esc(label)}</span><span class="mono" style="font-size:12px">${pct}%</span></div><div style="height:5px;background:var(--s4);border-radius:3px"><div style="width:${pct}%;height:100%;background:var(--blue);border-radius:3px"></div></div></div>`; };
+          ep.innerHTML = metricBar('Precision', m.precision || 0) + metricBar('Recall', m.recall || 0) + metricBar('F1 Score', m.f1 || 0) +
+            `<div class="kv" style="margin-top:4px"><span class="kv-k">False Positive Rate</span><span class="kv-v mono red">${((m.fpr || 0) * 100).toFixed(1)}%</span></div>` +
+            `<div style="margin-top:8px;font-size:10.5px;color:var(--t2)">Metrics use internal validation split. For true evaluation, load labeled data via /api/ml/train/dataset.</div>`;
+        } else if (ep) { ep.innerHTML = `<div class="t2" style="font-size:12px">Model not yet trained — awaiting sufficient traffic (${(d.min_samples || 500)} samples)</div>`; }
+      } catch (e) { }
+    }
+
+    function prependMLAnomaly(a) {
+      const feed = document.getElementById('ml-anomaly-feed');
+      if (!feed) return;
+      const ph = feed.querySelector('div');
+      if (ph && ph.textContent.includes('No ML')) ph.remove();
+      const div = document.createElement('div');
+      div.style.cssText = 'padding:8px 12px;border-bottom:1px solid var(--ln1);cursor:pointer';
+      const det = a.details || {};
+      const feats = (det.top_anomalous_features || []).map(f => f.feature || f).slice(0, 3).join(', ');
+      div.innerHTML =
+        `<div style="display:flex;align-items:center;gap:6px;margin-bottom:3px">` +
+        `<span class="sev s-${a.severity || 'LOW'}" style="font-size:9px">${a.severity || 'LOW'}</span>` +
+        `<span class="mono blu" style="font-size:10.5px">${esc(a.src_ip || '—')}</span>` +
+        `<span class="mono t2" style="font-size:10px">${toICT(a.timestamp)}</span></div>` +
+        `<div style="font-size:10.5px;color:var(--t1)">Conf: <span class="mono amb">${a.confidence || 0}%</span>` + (feats ? ` · Top features: <span class="mono">${esc(feats)}</span>` : '') + `</div>`;
+      div.onclick = () => { S.selectedInvAlert = a; nav('investigate', document.querySelectorAll('.nav-item')[7]); openInvestigation(a); };
+      feed.prepend(div);
+      while (feed.children.length > 50) feed.lastChild.remove();
+    }
+
+    function renderMLFeatures(names) {
+      const el = document.getElementById('ml-feat-grid');
+      if (!el) return;
+      const CATEGORIES = { packet_count: 'Volume', byte_count: 'Volume', unique_dst_ips: 'Spread', unique_dst_ports: 'Spread', syn_ratio: 'TCP', ack_ratio: 'TCP', rst_ratio: 'TCP', fin_ratio: 'TCP', icmp_ratio: 'Protocol', udp_ratio: 'Protocol', avg_pkt_size: 'Size', std_pkt_size: 'Size', avg_iat: 'Timing', std_iat: 'Timing', protocol_entropy: 'Entropy', port_entropy: 'Entropy', uses_dns: 'Service', uses_tls: 'Service' };
+      const CAT_COLORS = { Volume: 'var(--blue)', Spread: 'var(--vio)', TCP: 'var(--red)', Protocol: 'var(--teal)', Size: 'var(--amb)', Timing: 'var(--grn)', Entropy: 'var(--yel)', Service: 'var(--t1)' };
+      el.innerHTML = (names.length ? names : Object.keys(CATEGORIES)).map(fn => {
+        const cat = CATEGORIES[fn] || 'Other';
+        const col = CAT_COLORS[cat] || 'var(--t1)';
+        return `<div class="feat-cell">` +
+          `<div class="feat-name"><span style="font-size:8px;color:${col};font-weight:600;display:block">${esc(cat)}</span>${esc(fn)}</div>` +
+          `<div class="feat-bar"><div class="feat-bar-fill" style="width:0%;background:${col}"></div></div></div>`;
+      }).join('');
+    }
+
+    async function forceRetrain() {
+      await fetch('/api/ml/retrain', { method: 'POST' });
+      showToastMsg('Retrain started', 'LOW');
+      setTimeout(loadMLPanel, 5000);
+    }
+    async function rollbackTo(vid) {
+      await fetch(`/api/ml/versions/${encodeURIComponent(vid)}/activate`, { method: 'POST' });
+      showToastMsg('Activated ' + vid, 'LOW');
+      loadMLPanel();
+    }
+
+    // ── Blocked ────────────────────────────────────────────────────────────────
+    async function loadBlocked() {
+      try {
+        const r = await fetch('/api/blocked'); const d = await r.json();
+        const rows = d.blocked || [];
+        document.getElementById('blocked-body').innerHTML = rows.length ? rows.map(b =>
+          `<tr><td class="mono blu">${esc(b.ip || '?')}</td>` +
+          `<td class="t2" style="font-size:11px">${esc(b.reason || '—')}</td>` +
+          `<td class="mono t2" style="font-size:10.5px">${esc((b.blocked_at || '').slice(0, 19))}</td>` +
+          `<td><span class="sev ${b.auto_blocked ? 's-crit' : 's-high'}">${b.auto_blocked ? 'AUTO' : 'MANUAL'}</span></td>` +
+          `<td class="mono grn" style="font-size:10px">iptables -A INPUT -s ${esc(b.ip)} -j DROP</td>` +
+          `<td><button class="btn" style="font-size:10px;padding:2px 7px" onclick="unblock('${esc(b.ip)}')">Unblock</button></td></tr>`
+        ).join('') : '<tr><td colspan="6" style="text-align:center;color:var(--t2);padding:20px">No blocked IPs</td></tr>';
+      } catch (e) { }
+    }
+    async function blockManual() {
+      const ip = document.getElementById('block-inp')?.value?.trim();
+      if (!ip) return;
+      await fetch('/api/block', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ip, reason: 'Manually blocked via SOC dashboard' }) });
+      showToastMsg('Blocked ' + ip, 'CRITICAL');
+      loadBlocked();
+    }
+    async function unblock(ip) {
+      await fetch('/api/block/' + encodeURIComponent(ip), { method: 'DELETE' });
+      showToastMsg('Unblocked ' + ip, 'LOW');
+      loadBlocked();
+    }
+
+    // ── Export ─────────────────────────────────────────────────────────────────
+    async function exportSIEM(fmt) {
+      const url = fmt === 'cef' ? '/api/siem/export/cef' : '/api/siem/export';
+      window.open(url, '_blank');
+    }
+    async function generateReport() {
+      showToastMsg('Generating report…', 'LOW');
+      try {
+        const r = await fetch('/api/report/generate', { method: 'POST' });
+        const d = await r.json();
+        if (d.filename) window.open('/api/report/download/' + encodeURIComponent(d.filename), '_blank');
+      } catch (e) { showToastMsg('Report failed', 'HIGH'); }
+    }
+
+    // ── Toast ──────────────────────────────────────────────────────────────────
+    function showToast(a) {
+      const sev = a.severity || 'LOW';
+      if (sev === 'LOW' || sev === 'MEDIUM') return;
+      showToastMsg(`${a.alert_type} · ${a.src_ip || '?'}`, sev);
+    }
+    function showToastMsg(msg, sev) {
+      const wrap = document.getElementById('toast-wrap');
+      const t = document.createElement('div');
+      t.className = `toast t-${sev}`;
+      t.textContent = msg;
+      wrap.appendChild(t);
+      setTimeout(() => t.remove(), 4000);
+    }
+
+    // ── Geo map ────────────────────────────────────────────────────────────────
+    let mapInst = null;
+    function initMap() {
+      if (mapInst) return;
+      try {
+        mapInst = L.map('map', { zoomControl: false, attributionControl: false }).setView([20, 0], 2);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(mapInst);
+        // Demo markers
+        const locs = [[37.8, -122.4, '10.0.0.94'], [51.5, -.1, '203.0.113.50'], [35.7, 139.7, '10.0.0.97'], [55.7, 37.6, '10.0.0.98'], [39.9, 116.4, '10.0.0.99'], [-33.9, 151.2, '10.0.0.96']];
+        locs.forEach(([lat, lng, ip]) => {
+          L.circleMarker([lat, lng], { radius: 6, color: '#e53e4d', fillColor: '#e53e4d', fillOpacity: .7, weight: 2 })
+            .addTo(mapInst).bindTooltip(ip, { permanent: false, className: 'mono' });
+        });
+      } catch (e) { }
+    }
+    document.addEventListener('DOMContentLoaded', () => setTimeout(initMap, 500));
+
+    // ── Topbar ML badge ────────────────────────────────────────────────────────
+    async function updateMLBadge() {
+      try {
+        const r = await fetch('/api/ml/info');
+        const d = await r.json();
+        const el = document.getElementById('tb-model');
+        if (!el) return;
+        if (d.trained) { el.textContent = 'ML: ' + d.samples.toLocaleString() + ' samples'; el.style.color = 'var(--grn)'; }
+        else { el.textContent = 'ML: accumulating'; el.style.color = 'var(--amb)'; }
+      } catch (e) { }
+    }
+    setInterval(updateMLBadge, 15000);
+    updateMLBadge();
+
+    // Initial render of all static feature cells
+    document.addEventListener('DOMContentLoaded', () => renderMLFeatures([]));
+
+    // ── v4.0: Network Flows ───────────────────────────────────────────────────
+    function formatBytes(b) {
+      if (b < 1024) return b + 'B'; if (b < 1048576) return (b / 1024).toFixed(1) + 'KB';
+      return (b / 1048576).toFixed(1) + 'MB';
+    }
+    async function loadFlows() {
+      try {
+        const r = await fetch('/api/flows?limit=100');
+        const d = await r.json();
+        const tbody = document.getElementById('flow-body');
+        const flows = d.flows || [];
+        document.getElementById('flow-count').textContent = d.total + ' flows';
+        if (!tbody) return;
+        if (!flows.length) {
+          tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--t2);padding:20px">No active flows</td></tr>';
+          return;
+        }
+        const PROTO_COLORS = { TCP: 'var(--blue)', UDP: 'var(--vio)', ICMP: 'var(--amb)' };
+        const STATE_COLORS = { ESTABLISHED: 'var(--grn)', SYN_SENT: 'var(--amb)', ACTIVE: 'var(--teal)', FIN: 'var(--t2)', RESET: 'var(--red)' };
+        tbody.innerHTML = flows.map(f => {
+          const pc = PROTO_COLORS[f.protocol] || 'var(--t1)';
+          const sc = STATE_COLORS[f.state] || 'var(--t1)';
+          return `<tr>` +
+            `<td class="mono blu" style="font-size:10.5px">${esc(f.src_ip || '?')}:${f.src_port || '?'}</td>` +
+            `<td class="mono" style="font-size:10.5px">${esc(f.dst_ip || '?')}:${f.dst_port || '?'}</td>` +
+            `<td><span class="mono" style="color:${pc};font-size:10.5px">${esc(f.protocol || '?')}</span></td>` +
+            `<td><span class="mono" style="color:${sc};font-size:10px">${esc(f.state || '?')}</span></td>` +
+            `<td class="mono t1" style="font-size:10.5px">${(f.packets || 0).toLocaleString()}</td>` +
+            `<td class="mono t1" style="font-size:10.5px">${formatBytes(f.bytes || 0)}</td>` +
+            `<td class="mono t2" style="font-size:10.5px">${f.duration || 0}s</td></tr>`;
+        }).join('');
+      } catch (e) { console.warn('Flows error:', e); }
+    }
+
+    // ── v4.0: Capture Engine Stats ─────────────────────────────────────────────
+    const kvStat = (k, v) => `<div class="kv"><span class="kv-k">${esc(k)}</span><span class="kv-v mono">${esc(String(v))}</span></div>`;
+
+    async function loadCaptureStats() {
+      try {
+        const r = await fetch('/api/capture/status');
+        const d = await r.json();
+        const el = document.getElementById('cap-stats-panel');
+        if (!el) return;
+        const modeColor = { pyshark: 'var(--grn)', af_packet: 'var(--blue)', dpkt: 'var(--teal)', scapy: 'var(--amb)', demo: 'var(--yel)' }[d.mode] || 'var(--t1)';
+        el.innerHTML =
+          `<div class="kv"><span class="kv-k">Capture Mode</span><span class="kv-v mono" style="color:${modeColor}">${esc(d.mode || 'none')}</span></div>` +
+          kvStat('Packets Captured', (d.captured || 0).toLocaleString()) +
+          kvStat('Packets Dropped', (d.dropped || 0).toLocaleString()) +
+          kvStat('Current PPS', (d.current_pps || 0).toLocaleString()) +
+          kvStat('Peak PPS', (d.peak_pps || 0).toLocaleString()) +
+          kvStat('Queue Depth', (d.queue_depth || 0).toLocaleString()) +
+          kvStat('Interface', d.interface || '—') +
+          kvStat('Start Time', d.start_time ? d.start_time.slice(0, 19) : '—');
+      } catch (e) { console.warn('Capture stats error:', e); }
+    }
+
+    // ── v4.0: Feature Importance ───────────────────────────────────────────────
+    async function loadFeatureImportance() {
+      try {
+        const r = await fetch('/api/ml/feature_importance');
+        const d = await r.json();
+        const el = document.getElementById('feat-imp-panel');
+        if (!el) return;
+        const feats = d.features || [];
+        if (!feats.length) {
+          el.innerHTML = '<div style="color:var(--t2);font-size:12px">Train ML model to see feature importance</div>';
+          return;
+        }
+        const maxImp = feats[0]?.importance || 1;
+        el.innerHTML = feats.slice(0, 10).map(f => {
+          const pct = Math.round((f.importance / maxImp) * 100);
+          return `<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">` +
+            `<span class="mono" style="width:120px;font-size:10px;color:var(--t1)">${esc(f.feature)}</span>` +
+            `<div style="flex:1;height:5px;background:var(--s4);border-radius:3px">` +
+            `<div style="width:${pct}%;height:100%;background:var(--vio);border-radius:3px"></div></div>` +
+            `<span class="mono t2" style="font-size:9px;width:50px">${f.importance.toFixed(4)}</span></div>`;
+        }).join('');
+      } catch (e) { console.warn('Feature importance error:', e); }
+    }
+
+    // ── v4.0: Analyst Feedback ─────────────────────────────────────────────────
+    async function submitFeedback(alertId, isTP) {
+      try {
+        await fetch('/api/alerts/feedback', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ alert_id: alertId, is_true_positive: isTP })
+        });
+        showToastMsg(isTP ? 'Confirmed as True Positive' : 'Dismissed as False Positive', isTP ? 'HIGH' : 'LOW');
+      } catch (e) { showToastMsg('Feedback failed', 'LOW'); }
+    }
+  </script>
+</body>
+
+</html>
